@@ -20,18 +20,99 @@ DSH 启动加载动画：短片**片尾交叉溶解进界面**、多片随机、
 
 ## 怎么装上（给使用者）
 
-**设置 → 插件 → 添加插件**，输入框里贴以下任意一种，装完按提示重启：
+> 这一节是**能照着做**的完整说明。更详细的版本在 [INSTALL.md](INSTALL.md)，
+> 日常使用看 [MANUAL.md](MANUAL.md)。
+
+### 你需要什么
+
+| 条件 | 说明 |
+|---|---|
+| **DSH** | **必须 `0.2.0-rc.2` 或更新**。这一版改了插件的设置契约（改为在模块上声明 `Config`，不再注册命名空间），更旧的版本装不上；本包在 `package.json` 里声明了 `>=0.2.0-rc.2`，官方安装器会直接拒绝并说明原因 |
+| **Node.js** | `^22.19.0` 或 `>=24`（DSH 自己就要求，通常已经有了） |
+| **git** | 只有下面「路 A 贴 GitHub 地址」才需要 |
+| 浏览器 | Chromium 内核（Chrome / Edge）。Firefox 没测过 |
+
+### 路 A：官方「添加插件」页面（推荐）
+
+**设置 → 插件 → 添加插件**，在输入框里贴以下任意一种，等它装完、按提示重启：
 
 | 贴什么 | 例子 |
 |---|---|
-| npm 包名 | `@ljwei-stak/dsh-boot-animation` |
-| GitHub 仓库 | `https://github.com/Alice-Marx/dsh-boot-animation` |
-| 本地目录 | 解压后目录的绝对路径（link 语义，目录得先自带 `node_modules`，见 [INSTALL.md](INSTALL.md)） |
-| 离线包 | `xxx.tgz` 的路径 |
+| **npm 包名** | `@ljwei-stak/dsh-boot-animation` ← 装这个就行 |
+| GitHub 仓库地址 | `https://github.com/Alice-Marx/dsh-boot-animation`（简写 `github:Alice-Marx/dsh-boot-animation` 也行） |
+| 本地目录 | 解压出来的目录的**绝对路径**（注意下面那个坑） |
+| 离线包 | `xxx.tgz` 的路径或网址 |
+
+这条路装的是「包」：pnpm 会把依赖一起装好（包括设置卡片要用的
+`@deepseek-ai/schemastery`），DSH 会把它加进 profile 的插件层，
+**不需要手改任何配置文件**，桌面版和 `dsh web` 都能用。
+
+> **本地目录这一路有个坑**：pnpm 把裸目录路径按「链接」处理（`package.json` 里记成
+> `link:C:/...`），只建一个软链，**不装这个目录自己声明的依赖**。所以那个目录必须已经
+> 是装好依赖的状态——先在里面跑一次 `npm install`，否则 `entry.js` 静态 import 的
+> `@deepseek-ai/schemastery` 解析不到，装上也不会有任何反应。想省事就用 npm 包名、
+> GitHub 地址或 `.tgz`，那三条路的依赖全自动。
+
+### 路 B：官方命令行
+
+```sh
+dsh plugin --profile web add @ljwei-stak/dsh-boot-animation
+```
+
+和路 A 是同一条官方通道，装完**重启一次 DSH**。
+
+> 桌面版（DSH Desktop）的 profile 名叫 `desktop`，这个命令不允许直接改它
+> （会报 `managed exclusively by the Electron application`）。**桌面版请走路 A。**
+
+### 路 C / 路 D：脚本（免 pnpm）
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools\install.ps1 -ProfileName desktop   # Windows
+```
+
+```sh
+sh tools/install.sh --profile desktop   # macOS / Linux（桌面版 profile）
+sh tools/install.sh                     # 不带参数则用于 dsh web
+```
+
+脚本自己找 DSH 的位置（先看 `DSH_HOME`，再找用户目录下的 `.dsh`），在 profile 里建目录
+链接、追加一行配置，并把设置卡片需要的 `@deepseek-ai/schemastery` 链上（要求 **3.18.4
+及以上**，要有 `.volatile()` 才有设置卡片）。**不跑 pnpm、不改 `package.json`。**
+找不到 profile 会明确报错并列出有哪些；装之前自动备份 `cordis.patch.yml`。
+
+> **`-ProfileName` 一定要按你实际在跑的 DSH 填**：桌面版（DSH Desktop）跑的是 `desktop`，
+> `dsh web` 跑的是 `web`。脚本默认找的是 `web`。填错了会装到没人用的那个 profile 上。
+
+### 装完检查
+
+1. **重启一次**（`entry.js` 的改动由 DSH 进程启动时加载，只刷新页面不生效），然后刷新浏览器
+2. 看到深海底背景 + 一条短片铺满窗口 → 装好了
+3. 进 **设置 → 插件**，找到「启动动画」这一行（默认收起），点开能看到
+   「淡入时长 / 进入方式 / 素材池」三节 → 完全正常
+4. **看不到这一行** → 设置卡片没注册上。贴 npm 包名 / GitHub / `.tgz` 装的话依赖是
+   pnpm 跟着装的（本包声明 `^3.18.4`），几乎不会遇到；只有「本地目录」路和脚本路可能是
+   链接指到了旧副本。查 DSH 控制台里 `boot-animation:` 开头的黄色告警，照那句话把
+   `node_modules\@deepseek-ai\schemastery` 换成 3.18.4+ 的那份即可。
+
+### 换掉自带的片子
+
+包里四段 mp4 随 MIT 一起给你，**可以直接换**：把你的视频丢进 `assets/videos/`
+（认 `.mp4` `.webm` `.m4v` `.mov`，推荐 H.264 + AAC 的 mp4），在设置卡片的素材池里看
+那一行有没有黄色 **`未优化`** 徽章（有的话说明 `moov` 在文件尾，浏览器要下完整个文件才
+出画面），双击 `tools\apply-faststart.bat` 处理一下，刷新页面即可。不想留作者的片子，
+直接删掉那四个 `.mp4` 再放自己的——池子空了也不会卡住，只是没有画面。
+
+### 卸掉
+
+| 想要 | 怎么做 |
+|---|---|
+| 暂时不要动画 | 设置卡片里关掉「开启启动动画」（**不注入任何东西**，回到原生启动页） |
+| 摘掉插件（路 A / B 装的） | 官方「插件」页面上卸，或 `dsh plugin --profile web remove @ljwei-stak/dsh-boot-animation`，然后重启 |
+| 摘掉插件（脚本装的） | `tools\uninstall.ps1 -ProfileName desktop` / `sh tools/uninstall.sh --profile desktop` |
+| 彻底删掉 | 先跑上面的卸载，再删掉整个目录 |
 
 依赖（含设置卡片要用的 `@deepseek-ai/schemastery@^3.18.4`）由 pnpm 自动装好，
 不用手改任何配置文件。（本地目录那路除外：pnpm 只建软链、不装该目录的依赖。）
-完整说明、其余安装路径与卸载见 [INSTALL.md](INSTALL.md)。
 
 ## 设置在哪里
 

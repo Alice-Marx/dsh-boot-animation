@@ -41,7 +41,10 @@
     "entry.js",
     "icon.svg",
     "package.json",
-    "README.md"
+    "README.md",
+    "INSTALL.md",
+    "MANUAL.md",
+    "AGENTS.md"
   ],
   "engines": {
     "node": "^22.19.0 || >=24.0.0"

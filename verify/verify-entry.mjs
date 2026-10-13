@@ -455,7 +455,10 @@ check('version is a semver',
   /^\d+\.\d+\.\d+(?:-[\w.]+)?$/.test(String(pkg.version)), String(pkg.version))
 check('description untouched', typeof pkg.description === 'string' && pkg.description.length > 0)
 equal('exports', Object.keys(pkg.exports), ['.', './client', './locale/*', './cordis.patch.yml', './package.json'])
-equal('files', pkg.files, ['assets', 'lib', 'src', 'locale', 'cordis.patch.yml', 'entry.js', 'icon.svg', 'package.json', 'README.md'])
+// The docs ship too, because README.md links to them from the npm page: a
+// package that carries only README.md leaves every one of those links dead for
+// anyone who installs from the registry rather than from GitHub.
+equal('files', pkg.files, ['assets', 'lib', 'src', 'locale', 'cordis.patch.yml', 'entry.js', 'icon.svg', 'package.json', 'README.md', 'INSTALL.md', 'MANUAL.md', 'AGENTS.md'])
 check('locale metadata ships',
   existsSync(join(root, 'locale', 'en.json')) && existsSync(join(root, 'locale', 'zh.json')))
 check('icon file ships', existsSync(join(root, 'icon.svg')))
