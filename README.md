@@ -5,10 +5,6 @@
 > 下文中出现的绝对路径都是**作者机器的开发记录**，不是给你的操作指令。
 
 # dsh-boot-animation
->
-> 下文中出现的绝对路径都是**作者机器的开发记录**，不是给你的操作指令。
-
-# dsh-boot-animation
 
 DSH 启动加载动画：短片**片尾交叉溶解进界面**、多片随机、启动进度可见、启动失败有兜底，**淡入时长 / 进入方式 / 素材池都在「设置 → 插件」里可调**。**不改 DSH 本体源码**，升级 DSH 不受影响。
 
@@ -30,11 +26,12 @@ DSH 启动加载动画：短片**片尾交叉溶解进界面**、多片随机、
 |---|---|
 | npm 包名 | `dsh-boot-animation` |
 | GitHub 仓库 | `https://github.com/lxj5820/dsh-boot-animation` |
-| 本地目录 | 解压后目录的绝对路径 |
+| 本地目录 | 解压后目录的绝对路径（link 语义，目录得先自带 `node_modules`，见 [INSTALL.md](INSTALL.md)） |
 | 离线包 | `xxx.tgz` 的路径 |
 
 依赖（含设置卡片要用的 `@deepseek-ai/schemastery@^3.18.4`）由 pnpm 自动装好，
-不用手改任何配置文件。完整说明、其余安装路径与卸载见 [INSTALL.md](INSTALL.md)。
+不用手改任何配置文件。（本地目录那路除外：pnpm 只建软链、不装该目录的依赖。）
+完整说明、其余安装路径与卸载见 [INSTALL.md](INSTALL.md)。
 
 ## 设置在哪里
 
