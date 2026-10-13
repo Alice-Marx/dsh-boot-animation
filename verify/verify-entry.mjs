@@ -446,7 +446,7 @@ check('dsh.engines.dsh declared', typeof pkg.dsh?.engines?.dsh === 'string' && p
   JSON.stringify(pkg.dsh?.engines?.dsh))
 // The plugin page renders icon + locale metadata; both must ship in the tarball.
 check('icon declared', pkg.icon === 'icon.svg', String(pkg.icon))
-equal('name', pkg.name, 'dsh-boot-animation')
+equal('name', pkg.name, '@ljwei-stak/dsh-boot-animation')
 // Deliberately not a pinned literal. This assertion read `0.1.0` until the
 // release commit that bumped the package to 0.2.0, at which point the suite went
 // red for a reason that had nothing to do with the code - a defect in the suite.

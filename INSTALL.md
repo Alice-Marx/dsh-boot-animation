@@ -21,7 +21,7 @@
 
 | 贴什么 | 例子 |
 |---|---|
-| npm 包名 | `dsh-boot-animation`（发布到 npm 后；装的是最新版） |
+| npm 包名 | `@ljwei-stak/dsh-boot-animation`（发布到 npm 后；装的是最新版） |
 | GitHub 仓库地址 | `https://github.com/Alice-Marx/dsh-boot-animation`（简写 `github:Alice-Marx/dsh-boot-animation` 也行） |
 | 本地目录 | 解压出来的那个目录的**绝对路径**（注意：pnpm 按「链接」处理，见下方警告） |
 | 离线包 | `xxx.tgz` 的路径或网址 |
@@ -121,7 +121,7 @@ sh tools/install.sh                     # dsh web 用的那个（默认就是 we
 | 想要 | 怎么做 |
 |---|---|
 | 暂时不要动画 | 设置卡片里关掉「开启启动动画」 |
-| 摘掉插件（走路 A / B 装的） | 官方「插件」页面上卸，或 `dsh plugin --profile web remove dsh-boot-animation`，然后重启 |
+| 摘掉插件（走路 A / B 装的） | 官方「插件」页面上卸，或 `dsh plugin --profile web remove @ljwei-stak/dsh-boot-animation`，然后重启 |
 | 摘掉插件（Windows，脚本装的） | `powershell -ExecutionPolicy Bypass -File tools\uninstall.ps1 -ProfileName desktop`（桌面版 profile 叫 `desktop`，默认找 `web`），然后刷新 |
 | 摘掉插件（macOS / Linux，脚本装的） | `sh tools/uninstall.sh --profile desktop`，然后刷新 |
 | 彻底删掉 | 先跑上面的卸载，再删掉整个目录 |
@@ -130,7 +130,7 @@ profile 是热加载的，摘掉后刷新页面就回到 DSH 原生启动页，�
 
 **走路 C / 路 D（脚本链接）装的**，摘掉插件无非两件事：删掉 `cordis.patch.yml` 里那个
 `- insert:` 块（它未必在文件末尾，DSH 自己会重排这一层，所以**搜 `boot-animation` 找，
-别按位置找**），再删掉 profile 下的 `node_modules\dsh-boot-animation` 链接
+别按位置找**），再删掉 profile 下的 `node_modules\@ljwei-stak\dsh-boot-animation` 链接
 （用 `cmd /c rmdir`，它只删链接，不会跟到插件目录里）。不想跑脚本就手工这么来。
 走路 A / 路 B 装的没有这两样东西——它就是个普通依赖，卸载由官方通道负责。
 
