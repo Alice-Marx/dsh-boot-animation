@@ -1,9 +1,18 @@
 {
   "name": "dsh-boot-animation",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "鲸鱼娘启动加载动画：点击进入（Esc/空格放行）、多片随机、启动进度可见、失败有兜底。不改 DSH 本体源码。",
   "license": "MIT",
   "author": "lxj5820",
+  "icon": "icon.svg",
+  "keywords": [
+    "dsh",
+    "deepseek",
+    "plugin",
+    "boot",
+    "animation",
+    "启动动画"
+  ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/lxj5820/dsh-boot-animation.git"
@@ -19,6 +28,7 @@
     "./client": {
       "default": "./lib/client.js"
     },
+    "./locale/*": "./locale/*",
     "./cordis.patch.yml": "./cordis.patch.yml",
     "./package.json": "./package.json"
   },
@@ -26,17 +36,23 @@
     "assets",
     "lib",
     "src",
+    "locale",
     "cordis.patch.yml",
     "entry.js",
-    "package.json"
+    "icon.svg",
+    "package.json",
+    "README.md"
   ],
   "engines": {
     "node": "^22.19.0 || >=24.0.0"
   },
-  "peerDependencies": {
-    "@deepseek-ai/schemastery": "*"
+  "dependencies": {
+    "@deepseek-ai/schemastery": "^3.18.4"
   },
   "dsh": {
+    "engines": {
+      "dsh": ">=0.2.0-rc.2"
+    },
     "client": {
       "platform": "web"
     },

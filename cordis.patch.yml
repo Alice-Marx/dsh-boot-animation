@@ -1,6 +1,6 @@
-# dsh-boot-animation bundle layer: mounted by `dsh plugin add`, so a profile
-# gets this row without manual cordis.patch.yml edits. A profile-level patch
-# can still disable the row by id.
+# dsh-boot-animation bundle layer: mounted by `dsh plugin add` / the official
+# 设置 → 插件 → 添加插件 page, so a profile gets this row without manual
+# cordis.patch.yml edits. A profile-level patch can still disable the row by id.
 #
 # There is one exit: the whole screen fades out over a second. Split and glitch
 # exits were built and then dropped by request; the sampler in tools/ still has

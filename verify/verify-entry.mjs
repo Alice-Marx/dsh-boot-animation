@@ -10,7 +10,7 @@
 // schema the settings service would silently drop, or a config shape the plugin
 // would silently misread, is caught here instead of in the browser.
 
-import { readFileSync, writeFileSync, mkdirSync, rmSync, cpSync } from 'node:fs'
+import { readFileSync, writeFileSync, mkdirSync, rmSync, cpSync, existsSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 import z from '@deepseek-ai/schemastery'
@@ -429,8 +429,23 @@ check('no backtick inside the injected row text', code.includes('globalThis.__DS
 
 console.log('\n[7] package.json')
 const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'))
-equal('peerDependencies', pkg.peerDependencies, { '@deepseek-ai/schemastery': '*' })
-check('no runtime dependencies', pkg.dependencies === undefined, JSON.stringify(pkg.dependencies))
+// The schema library is a DECLARED dependency, not a peer. The peer form read
+// correct ("the host supplies it") and was wrong in the only place it mattered:
+// a profile's pnpm-workspace.yaml sets autoInstallPeers=false, so a `dsh plugin
+// add` install never resolved it, the static import in entry.js threw, and the
+// plugin died before registering a single route. The declared range must carry
+// .volatile() (>= 3.18.4) or the settings card silently disappears.
+equal('schemastery is a declared dependency', pkg.dependencies, { '@deepseek-ai/schemastery': '^3.18.4' })
+check('no schemastery peer left behind',
+  pkg.peerDependencies?.['@deepseek-ai/schemastery'] === undefined,
+  JSON.stringify(pkg.peerDependencies))
+// What the official installer reads before and after installing: the bundle patch
+// that contributes the row, and the runtime floor the plugin page gates on.
+equal('dsh.bundle.patch', pkg.dsh?.bundle?.patch, './cordis.patch.yml')
+check('dsh.engines.dsh declared', typeof pkg.dsh?.engines?.dsh === 'string' && pkg.dsh.engines.dsh.includes('0.2.0-rc.2'),
+  JSON.stringify(pkg.dsh?.engines?.dsh))
+// The plugin page renders icon + locale metadata; both must ship in the tarball.
+check('icon declared', pkg.icon === 'icon.svg', String(pkg.icon))
 equal('name', pkg.name, 'dsh-boot-animation')
 // Deliberately not a pinned literal. This assertion read `0.1.0` until the
 // release commit that bumped the package to 0.2.0, at which point the suite went
@@ -439,8 +454,11 @@ equal('name', pkg.name, 'dsh-boot-animation')
 check('version is a semver',
   /^\d+\.\d+\.\d+(?:-[\w.]+)?$/.test(String(pkg.version)), String(pkg.version))
 check('description untouched', typeof pkg.description === 'string' && pkg.description.length > 0)
-equal('exports untouched', Object.keys(pkg.exports), ['.', './client', './cordis.patch.yml', './package.json'])
-equal('files untouched', pkg.files, ['assets', 'lib', 'src', 'cordis.patch.yml', 'entry.js', 'package.json'])
+equal('exports', Object.keys(pkg.exports), ['.', './client', './locale/*', './cordis.patch.yml', './package.json'])
+equal('files', pkg.files, ['assets', 'lib', 'src', 'locale', 'cordis.patch.yml', 'entry.js', 'icon.svg', 'package.json', 'README.md'])
+check('locale metadata ships',
+  existsSync(join(root, 'locale', 'en.json')) && existsSync(join(root, 'locale', 'zh.json')))
+check('icon file ships', existsSync(join(root, 'icon.svg')))
 
 // ---------------------------------------------------------------------------
 // 8. Which schema library this run actually resolved.

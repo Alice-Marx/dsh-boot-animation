@@ -25,9 +25,20 @@
 //
 //   * `Config` must be a property of the module namespace object, so the schema
 //     package has to resolve at module-evaluation time. The previous lazy import
-//     degraded to "no settings card"; a static import fails the whole module,
-//     which is why `@deepseek-ai/schemastery` is a peer dependency — the host
-//     supplies it — and never a vendored copy.
+//     degraded to "no settings card"; a static import fails the whole module —
+//     which is why `@deepseek-ai/schemastery` is a plain dependency pinned at
+//     `^3.18.4`. It used to be a peer dependency on the theory that "the host
+//     supplies it"; that theory does not survive contact with a profile, whose
+//     `pnpm-workspace.yaml` sets `autoInstallPeers: false`: the peer was never
+//     installed, a fresh `dsh plugin add` resolved no schemastery at all, and the
+//     import threw while `entry.js` was being evaluated — no routes, no screen,
+//     no card, and no diagnostic that named the real cause. A declared dependency
+//     is versioned, deterministic and has `.volatile()` from 3.18.4 on. The
+//     kernel keeps its own copy; the two interoperate because the projection
+//     reads plain data (`meta.volatile`, `dict`, `toJSON()`) and the live
+//     reference is keyed by `Symbol.for('cosmokit.volatile.write')`, a global
+//     registry symbol that does not care how many copies of the library exist.
+//     `LIVE_CAPABLE` still probes for the method rather than trusting it.
 //   * `describe()` reports only an entry whose Config projects a non-empty form,
 //     and that projection keeps only fields marked `.volatile()`. A schema with
 //     no live field is invisible to the settings page; see `LIVE_CAPABLE`.
@@ -118,11 +129,14 @@ const ENTER_MODES = ['tail', 'end', 'click']
  *
  * `.volatile()` is what makes `dsh-settings` project a field into the form the
  * settings page renders: `volatileForm()` keeps only fields with `meta.volatile`,
- * and `describe()` drops every entry whose projected form is empty. The kernel's
- * copy (3.18.4, inside the app payload) has the method. An older copy linked next
- * to this package — the 3.18.1 build that sits beside a workspace checkout — does
- * not, and calling it there would throw while this module is being evaluated,
- * taking the routes and the boot screen down with the settings card.
+ * and `describe()` drops every entry whose projected form is empty. `.volatile()`
+ * exists from schemastery 3.18.4, which this package now declares as a dependency,
+ * so the normal resolution has it. What the probe still guards against is a
+ * resolution that ignores that declaration — a profile lockfile pinned older
+ * through `pnpm.overrides`, or a hand-made `node_modules` link installed by the
+ * scripted (non-package) route — because calling the method there would throw
+ * while this module is being evaluated, taking the routes and the boot screen
+ * down with the settings card.
  *
  * So the method is probed once and the schema degrades to non-volatile when it is
  * absent. The cost is a hidden settings card; `apply` warns with the fix.
@@ -425,8 +439,10 @@ export function apply(ctx, config) {
     ctx.logger?.warn?.(
       'boot-animation: the resolved @deepseek-ai/schemastery has no .volatile(), so DSH '
       + 'will not serve this entry as a settings namespace and the settings card stays '
-      + 'hidden. Link node_modules/@deepseek-ai/schemastery to the copy the kernel loads '
-      + '(>= 3.18.4).',
+      + 'hidden. This package declares ^3.18.4 as a dependency, so a resolution without '
+      + 'the method means the profile pinned an older copy (pnpm.overrides) or the '
+      + 'package was linked by hand instead of installed. Reinstall the plugin so '
+      + 'pnpm resolves the declared version.',
     )
   }
 

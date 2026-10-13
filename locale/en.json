@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Boot Animation",
+    "description": "A full-window video clip that plays before DSH's app shell, dissolves into the interface, and offers per-clip and behaviour settings in Settings → Plugins."
+  }
+}

@@ -65,7 +65,7 @@ Every line here cost a real debugging session. They are not style preferences.
 | **A scratch-copy suite must copy with `dereference: true`.** | Installed, `node_modules/@deepseek-ai/schemastery` is a symlink; `cpSync(..., { recursive: true })` preserves it, so the scratch tree points back at the real library. `verify-degraded.mjs`'s "rename `.volatile()` away" then rewrote the INSTALLED schemastery and silently disarmed every settings card in the deployment. The suites now copy real files and assert the scratch is not a link before rewriting. |
 | **Read optional services with `ctx.inject([...], (owner) => owner.get(name))`.** Never `ctx.get(name)`. | `ctx.get` is a one-shot read that races activation and silently answers `undefined`; the card then never registers and there is no error anywhere. Every other client plugin in the deployment uses the `ctx.inject` form. |
 | **The client half declares no `inject`.** | A required service leaves the fiber PENDING in a profile that lacks it, `apply` never runs, `clientReady` is never sent, and the animation refuses to hand over. |
-| **Every settings field the card edits must be marked `.volatile()`** — and the schema library that resolves beside this package must actually have the method. | `@deepseek-ai/dsh-settings` projects volatile fields and nothing else: a `Config` with none is not described at all, so the namespace is never served, the card's `whileServed` never fires, and the settings row is simply absent with no error. The 3.18.1 build linked next to a workspace checkout has no `.volatile()` at all — calling it would throw while `entry.js` is being evaluated; `LIVE_CAPABLE` probes for it and warns instead. |
+| **Every settings field the card edits must be marked `.volatile()`** — and the schema library that resolves beside this package must actually have the method. | `@deepseek-ai/dsh-settings` projects volatile fields and nothing else: a `Config` with none is not described at all, so the namespace is never served, the card's `whileServed` never fires, and the settings row is simply absent with no error. `.volatile()` exists from schemastery 3.18.4. It used to be reached through a peer dependency, which the profile's `autoInstallPeers: false` never installed — a fresh `dsh plugin add` resolved no schemastery at all and the static import threw while `entry.js` was being evaluated, killing the routes and the screen too. It is now a declared `^3.18.4` dependency; `LIVE_CAPABLE` still probes instead of trusting, because a profile `pnpm.overrides` or a hand-made link can still hand it an older copy. Cross-copy use is safe by construction: the projection reads plain data (`meta.volatile`, `dict`, `toJSON()`) and the live reference is keyed by `Symbol.for('cosmokit.volatile.write')`. |
 | **Read a volatile config field through `.get()`, never directly.** | `.volatile()` puts a stable reference in the applied config, not the value. Reading it directly yields an object, every type guard falls through to the defaults, and the settings page looks like it does nothing at all — while the values it writes are stored correctly. |
 | **Serve clips `cache-control: no-store`, always.** | The overlay aborts the media request when it replaces the element; anything cacheable stores a truncated body. The next normal reload decodes the fragment — and a clip with `moov` at the end has no index in a fragment, so it paints nothing. A hard reload hides it. `ETag`/`no-cache` does **not** fix this: an ETag only ever claims the file has not changed, never that the copy in hand is complete. |
 | **A clip's first frame must be evidenced by decoded data** (`readyState >= 2`, `loadeddata`, `canplay`, advancing time) — **not** by `requestVideoFrameCallback` alone. | The element starts at `opacity: 0` and reveal is what makes it visible, so waiting for a *composited* frame waits on the style change it is itself blocking. The screen locks on the gradient. |
@@ -88,20 +88,38 @@ Every line here cost a real debugging session. They are not style preferences.
 | `src/client.js` | Rebuild (`node build-client.mjs`), then reload; if the change does not appear, restart — the initial bundle revision is allocated per process. |
 | `assets/videos/*` | Reload. The manifest is read per request and clip URLs carry a content revision. |
 
-Installed state: the package is linked into a DSH profile
-(`<profile>/node_modules/dsh-boot-animation` → this directory) with a one-row
-`- insert:` block in the profile's `cordis.patch.yml`. `package.json` is not
-modified and no `pnpm install` runs. `tools/install.ps1` (Windows) and
-`tools/install.sh` (macOS / Linux) do it, and each one's `uninstall.*` reverses
-it. The profile to name is the one DSH actually runs (`desktop` for the desktop
-app, `web` for `dsh web`), not the script's default.
+Installed state: there are two routes, and they leave different footprints.
 
-One thing the link does **not** provide: `@deepseek-ai/schemastery`. The Host half
-imports it statically, so it must resolve from this directory — normally that is
-`node_modules/@deepseek-ai/schemastery`, and it must be the copy the kernel loads
-(>= 3.18.4, the one with `.volatile()`), not the older build that sits beside a
-workspace checkout. When it is missing or too old, the plugin still boots and the
-settings card does not; `apply` warns with exactly that sentence.
+**The package route (the one users take).** `dsh plugin --profile web add <spec>` —
+or, equivalently, the official **设置 → 插件 → 添加插件** page, which accepts an npm
+package name, a GitHub repository URL, a local absolute directory, or a `.tgz`.
+pnpm installs the package into the profile like any dependency; because the manifest
+declares `dsh.bundle.patch`, the post-install bundle reconciliation adds the package
+to the profile's `dsh.profile.bundles`, and its `cordis.patch.yml` becomes a bundle
+layer patch contributing the one `- insert:` row that mounts the Host half. No
+profile file is edited by hand, `package.json` is untouched, and uninstalling is the
+official channel's job (`dsh plugin --profile web remove`, or the page). The spec
+forms the installer accepts are exactly `parseInstallSpec`'s in
+`@deepseek-ai/dsh-plugin-manager`: registry name[@range], `github:`/`git://`/`git@`/
+hosted-repo URL, an absolute path (`file:`/`link:`/bare), and a tarball path or URL.
+A git-hosted install clones and installs dependencies; this package ships no build
+scripts, so nothing needs `allowBuilds` in the profile's `pnpm-workspace.yaml`.
+`dependencies` then supply `@deepseek-ai/schemastery@^3.18.4` — including on the
+settings card's behalf, which used to be the manual step. One exception inside this
+route: a **bare local directory** spec normalizes to `link:` (verified: the manifest
+records `link:C:/...` and the profile's `node_modules` gains only the symlink, never
+the linked directory's own dependencies), so that form needs the directory to already
+carry its `node_modules`; every other form — registry, git, `.tgz` — really does
+install the declared dependency.
+
+**The link route (the author's and the no-restart scripts').** `tools/install.ps1`
+(Windows) and `tools/install.sh` (macOS / Linux) create a directory link in the
+profile, append the one-row `- insert:` block to the profile's `cordis.patch.yml`,
+and chain `@deepseek-ai/schemastery` from DSH's own copy because no package manager
+runs on this route — the declared dependency is never installed for a link. Each
+script's `uninstall.*` reverses exactly what it did. The profile to name is the one
+DSH actually runs (`desktop` for the desktop app, `web` for `dsh web`), not the
+script's default.
 
 ## Verifying a change
 

@@ -4,6 +4,12 @@
 
 > 这份是给人看的。给人写的维护/排查细节在 [README.md](README.md)，给下一个 AI 接手看的在 [AGENTS.md](AGENTS.md)。
 
+## 安装
+
+**设置 → 插件 → 添加插件**，贴 npm 包名 `dsh-boot-animation`、GitHub 仓库地址
+`https://github.com/lxj5820/dsh-boot-animation`、或解压后目录的绝对路径，装完按提示重启。
+更多安装方式与卸载见 [INSTALL.md](INSTALL.md)。
+
 ## 它长什么样
 
 1. 深海底背景 + 一条短片铺满窗口（从素材池里随机取一条）
