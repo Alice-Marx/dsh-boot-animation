@@ -9,6 +9,17 @@
 # The other knobs live in the Host half rather than here:
 #   holdMs   how long to wait before releasing a boot that never settles
 
+# The `name` below is the module the loader resolves as a BARE package name from
+# the profile's node_modules, so it must equal this package's own name exactly.
+# Under a scope the directory is node_modules/@ljwei-stak/dsh-boot-animation and
+# a bare `dsh-boot-animation` no longer resolves: the entry fails to import and
+# DSH reports "did not activate boot-animation: failed to import", while the
+# settings card still resolves (it is keyed on `id`, not `name`).
+#
+# `id` is a different thing entirely and is NOT the package name: it is the
+# settings namespace, spelled the same way in src/client.js as
+# SETTINGS_NAMESPACE. Renaming one without the other breaks the pairing silently.
+
 - insert:
     - id: boot-animation
-      name: dsh-boot-animation
+      name: '@ljwei-stak/dsh-boot-animation'

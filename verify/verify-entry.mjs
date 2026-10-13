@@ -463,6 +463,25 @@ check('locale metadata ships',
   existsSync(join(root, 'locale', 'en.json')) && existsSync(join(root, 'locale', 'zh.json')))
 check('icon file ships', existsSync(join(root, 'icon.svg')))
 
+// The patch row's `name` is resolved as a BARE package name from the profile's
+// node_modules, so it has to be the manifest name character for character. Under
+// a scope the installed directory is node_modules/@scope/name and the bare form
+// resolves to nothing: the entry silently fails to import and DSH reports
+// "did not activate ... failed to import" while the settings card still works,
+// because that one is keyed on `id`. Nothing in the harness compares the two, so
+// a rename that moves either without the other is invisible until boot.
+const patchText = readFileSync(join(root, 'cordis.patch.yml'), 'utf8')
+// Both keys may carry the YAML list-item dash: the row reads
+// `- insert:\n    - id: ...\n      name: ...`, so `id` is `- id:` but `name` is not.
+const patchKey = (key) => new RegExp('^\\s*(?:- )?' + key + ':\\s*[\'"]?([^\'"\\n]+?)[\'"]?\\s*$', 'm').exec(patchText)
+const patchName = patchKey('name')
+equal('patch row name == package name', patchName?.[1], pkg.name)
+// ...and `id` must NOT be the package name; it is the settings namespace, which
+// src/client.js spells out separately.
+const patchId = patchKey('id')
+check('patch row id is a namespace, not the package name',
+  patchId !== null && patchId[1] !== pkg.name, patchId?.[1] ?? '(none)')
+
 // ---------------------------------------------------------------------------
 // 8. Which schema library this run actually resolved.
 // ---------------------------------------------------------------------------
