@@ -150,7 +150,7 @@ tree. What `tools/` holds here is the media and preview tooling:
 | `tools/codec-report.mjs` | The video codec fourcc per clip |
 | `tools/preview.mjs` | Local two-server preview of the injection, without restarting DSH |
 | `tools/install.ps1` / `tools/uninstall.ps1` | Add or remove the profile link and the patch row. Both name the profile the running DSH uses (`desktop`, not the `web` default) and both must leave `cordis.patch.yml` byte-identical except for the row they own — UTF-8, no BOM, CJK intact. `install.ps1`'s last step only *reports* whether a dsh server answered; it does not repair, and it does not roll back on a port it could not reach. |
-| `tools/install.sh` / `tools/uninstall.sh` | The macOS / Linux twins of the pair above: same two changes, same backup, same UTF-8-safe line handling, plus a schema-version probe (≥ 3.18.4 with `.volatile()`). |b1349df (Add macOS/Linux install support (tools/install.sh + tools/uninstall.sh))
+| `tools/install.sh` / `tools/uninstall.sh` | The macOS / Linux twins of the pair above: same two changes, same backup, same UTF-8-safe line handling, plus a schema-version probe (≥ 3.18.4 with `.volatile()`). |
 
 For a Host-half change the offline proof that matters is that the module still
 evaluates, still exports the schema the settings service looks for, and still

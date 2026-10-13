@@ -25,7 +25,7 @@ DSH 启动加载动画：短片**片尾交叉溶解进界面**、多片随机、
 | 贴什么 | 例子 |
 |---|---|
 | npm 包名 | `dsh-boot-animation` |
-| GitHub 仓库 | `https://github.com/lxj5820/dsh-boot-animation` |
+| GitHub 仓库 | `https://github.com/Alice-Marx/dsh-boot-animation` |
 | 本地目录 | 解压后目录的绝对路径（link 语义，目录得先自带 `node_modules`，见 [INSTALL.md](INSTALL.md)） |
 | 离线包 | `xxx.tgz` 的路径 |
 

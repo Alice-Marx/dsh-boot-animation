@@ -22,7 +22,7 @@
 | 贴什么 | 例子 |
 |---|---|
 | npm 包名 | `dsh-boot-animation`（发布到 npm 后；装的是最新版） |
-| GitHub 仓库地址 | `https://github.com/lxj5820/dsh-boot-animation`（简写 `github:lxj5820/dsh-boot-animation` 也行） |
+| GitHub 仓库地址 | `https://github.com/Alice-Marx/dsh-boot-animation`（简写 `github:Alice-Marx/dsh-boot-animation` 也行） |
 | 本地目录 | 解压出来的那个目录的**绝对路径**（注意：pnpm 按「链接」处理，见下方警告） |
 | 离线包 | `xxx.tgz` 的路径或网址 |
 

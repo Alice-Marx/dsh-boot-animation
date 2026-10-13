@@ -7,7 +7,7 @@
 ## 安装
 
 **设置 → 插件 → 添加插件**，贴 npm 包名 `dsh-boot-animation`、GitHub 仓库地址
-`https://github.com/lxj5820/dsh-boot-animation`、或解压后目录的绝对路径，装完按提示重启。
+`https://github.com/Alice-Marx/dsh-boot-animation`、或解压后目录的绝对路径，装完按提示重启。
 更多安装方式与卸载见 [INSTALL.md](INSTALL.md)。
 
 ## 它长什么样

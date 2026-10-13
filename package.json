@@ -3,7 +3,7 @@
   "version": "0.3.0",
   "description": "鲸鱼娘启动加载动画：点击进入（Esc/空格放行）、多片随机、启动进度可见、失败有兜底。不改 DSH 本体源码。",
   "license": "MIT",
-  "author": "lxj5820",
+  "author": "Alice-Marx",
   "icon": "icon.svg",
   "keywords": [
     "dsh",
@@ -15,11 +15,11 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/lxj5820/dsh-boot-animation.git"
+    "url": "git+https://github.com/Alice-Marx/dsh-boot-animation.git"
   },
-  "homepage": "https://github.com/lxj5820/dsh-boot-animation#readme",
+  "homepage": "https://github.com/Alice-Marx/dsh-boot-animation#readme",
   "bugs": {
-    "url": "https://github.com/lxj5820/dsh-boot-animation/issues"
+    "url": "https://github.com/Alice-Marx/dsh-boot-animation/issues"
   },
   "type": "module",
   "main": "entry.js",
