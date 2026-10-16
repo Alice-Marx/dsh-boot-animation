@@ -6,9 +6,21 @@
 
 ## 安装
 
-**设置 → 插件 → 添加插件**，贴 npm 包名 `dsh-boot-animation`、GitHub 仓库地址
+**设置 → 插件 → 添加插件**，贴 npm 包名 `@ljwei-stak/dsh-boot-animation`、GitHub 仓库地址
 `https://github.com/Alice-Marx/dsh-boot-animation`、或解压后目录的绝对路径，装完按提示重启。
 更多安装方式与卸载见 [INSTALL.md](INSTALL.md)。
+
+### Upgrade from 0.3.0
+
+Update `@ljwei-stak/dsh-boot-animation` to **0.3.2 or later** through DSH's plugin
+manager. Version 0.3.0 used the old, unscoped Host module name in its bundle patch,
+so installation could succeed while the video routes and boot scripts never
+loaded. The current patch resolves the full scoped package name and keeps the
+settings namespace `boot-animation` unchanged.
+
+After updating, **quit DeepSeek Harness from the system tray, then launch it
+again**. Closing only the window can leave the old Host running; refreshing the
+page does not replace the Desktop process's cached startup injections.
 
 ## 它长什么样
 
