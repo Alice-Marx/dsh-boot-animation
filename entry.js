@@ -52,6 +52,7 @@ import { createReadStream, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { basename, extname, join, resolve, sep } from 'node:path'
 import { optimizeInPlace } from './src/remux.js'
+import { createCustomClips } from './src/custom-clips.js'
 import z from '@deepseek-ai/schemastery'
 
 /**
@@ -434,6 +435,7 @@ function resolveClip(url) {
  */
 export function apply(ctx, config) {
   const server = ctx.webServer
+  const customClips = createCustomClips(ctx, { route: ROUTE, serveClip, sendJson, readFaststart })
 
   if (!LIVE_CAPABLE) {
     ctx.logger?.warn?.(
@@ -497,7 +499,8 @@ export function apply(ctx, config) {
     path: `${ROUTE}/clips.json`,
     handler: (req, res) => {
       void (async () => {
-        const clips = await listClips()
+        const clips = [...await listClips(), ...await customClips.listClips(req)]
+          .sort((left, right) => right.mtime - left.mtime)
         const disabled = new Set(currentSettings().disabledClips)
         sendJson(res, 200, {
           clips: clips.map(clip => ({
@@ -507,15 +510,16 @@ export function apply(ctx, config) {
             // produced a bad entry changes. The first scheme (mtime alone) left
             // truncated `immutable` entries that a normal reload kept reusing, and
             // nothing but a hard reload could dislodge them.
-            src: `${ROUTE}/clip/${encodeURIComponent(basename(clip.file))}`
-              + `?v=${String(clip.revision)}-${String(clip.bytes)}`,
-            name: basename(clip.file),
+            src: clip.src ?? (`${ROUTE}/clip/${encodeURIComponent(basename(clip.file))}`
+              + `?v=${String(clip.revision)}-${String(clip.bytes)}`),
+            name: clip.name ?? basename(clip.file),
             // Everything on disk is listed, with the pool decision carried as a
             // field. The screen plays only the enabled ones; the settings card
             // needs the whole list to offer them back.
-            enabled: !disabled.has(basename(clip.file)),
+            enabled: !disabled.has(clip.name ?? basename(clip.file)),
             bytes: clip.bytes,
             faststart: clip.faststart,
+            ...(clip.custom ? { custom: true, displayName: clip.displayName } : {}),
           })),
         })
       })().catch((error) => {

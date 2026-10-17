@@ -77,7 +77,25 @@ page does not replace the Desktop process's cached startup injections.
 
 > 声音这一项**不改浏览器本身的规矩**：如果这个站点还没被 Chrome 记住，片子照样以静音开始，还是要你点一下才出声。「播放影片声音」关掉是**更彻底**的方向——不是「先静音播放」，而是整条音频路径都不走：不尝试开声音，也不再生出那个按钮。
 
-## 换自己的视频
+## Import your own video and set playback effects
+
+Open **设置 → 插件 → 启动动画** and expand the card. Under **素材池**, use
+**导入自己的视频** to choose an MP4, WebM, M4V or MOV file, up to 256 MB.
+H.264 video with AAC audio in an MP4 container is recommended. The browser still
+needs to support the video's codec; an unsupported file is identified in the pool.
+
+A successful import selects that video for the next boot. **设为开屏** selects
+one existing clip; selecting several checkboxes creates a random pool. **预览**
+plays that clip with the current sound, fade, entry mode, click and hint settings.
+An imported clip can be removed with **移除** after confirmation. Removing the
+last selected custom clip first selects another available video.
+
+Imported files live in the current DSH profile, outside the installed plugin, so
+package upgrades retain them. Profiles have separate pools. No original source
+file is moved or overwritten. Preview reflects the current controls immediately;
+Desktop's next startup uses them after quitting from the system tray and relaunching.
+
+## Legacy folder-based media
 
 **第一步：把视频放进素材池**
 

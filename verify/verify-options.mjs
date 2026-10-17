@@ -195,7 +195,7 @@ function mount(cfg, options = {}) {
     fetch: () => Promise.resolve({
       ok: true,
       json: () => Promise.resolve({
-        clips: [{ name: 'clip.mp4', src: '/clip/clip.mp4', enabled: true }],
+        clips: options.clips || [{ name: 'clip.mp4', src: '/clip/clip.mp4', enabled: true }],
       }),
     }),
     // Captured, never fired: the hold window, the tail loop, the fade and the
@@ -367,6 +367,10 @@ check('no attribute selector leaves a numeric value unquoted',
 
 // ---------------------------------------------------------------------------
 console.log('\n[6] the card edits exactly these three fields')
+const customBoot = mount({ sound: false }, { clips: [{ name: 'custom/test.mp4', src: '/private/test.mp4?v=1', enabled: true }] })
+await settle()
+equal('custom clip identity reaches the actual boot player', video(customBoot).src, '/private/test.mp4?v=1')
+equal('custom boot obeys the sound switch', video(customBoot).muted, true)
 // ---------------------------------------------------------------------------
 const cardCode = CLIENT.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/[^\n]*/g, '$1')
 for (const field of ['sound', 'clickToEnter', 'showHint']) {
@@ -392,7 +396,7 @@ console.log('\n[7] the settings card renders the three switches and writes them'
 // `useSyncExternalStore` each take the next slot from one cursor, so a card that
 // starts calling hooks conditionally corrupts its own state here rather than
 // silently in the settings page.
-function mountCard(snapshot) {
+function mountCard(snapshot, options = {}) {
   const states = []
   let cursor = 0
   let tree = null
@@ -403,11 +407,17 @@ function mountCard(snapshot) {
     }),
     useState: (initial) => {
       const index = cursor++
-      if (states.length <= index) states[index] = typeof initial === 'function' ? initial() : initial
+      if (states.length <= index) states[index] = index === 1 && options.pool !== undefined
+        ? options.pool : (typeof initial === 'function' ? initial() : initial)
       return [states[index], (next) => {
         states[index] = typeof next === 'function' ? next(states[index]) : next
         draw()
       }]
+    },
+    useRef: (initial) => {
+      const index = cursor++
+      if (states.length <= index) states[index] = { current: initial }
+      return states[index]
     },
     useCallback: (fn) => { cursor++; return fn },
     useEffect: () => { cursor++ },
@@ -417,13 +427,23 @@ function mountCard(snapshot) {
   const form = {
     subscribe: () => () => {},
     getSnapshot: () => snapshot,
-    mutate: (ops, revision) => { writes.push({ ops, revision }); return true },
+    mutate: (ops, revision) => {
+      writes.push({ ops, revision })
+      if (options.rejectWrite) return false
+      snapshot = { ...snapshot, value: { ...snapshot.value } }
+      for (const op of ops) snapshot.value[op.path[0]] = op.value
+      draw()
+      return true
+    },
   }
   let load = null
   const sandbox = {
     window: { __ModuleLoader__: { load: (definition) => { load = definition } } },
     document: doc,
     location: { search: '' },
+    fetch: options.fetch,
+    confirm: options.confirm || (() => true),
+    __DSH_BOOT_ANIM__: options.overlay,
     console,
   }
   vm.createContext(sandbox)
@@ -515,9 +535,92 @@ for (const [label, field, initial] of [
 const legacy = mountCard({ status: 'available', revision: 1, writable: true, value: { enabled: true, fadeMs: 2000 } })
 legacy.click(legacy.nodes.find((node) => node.type === 'button' && node.props.className === 'dshba-head'))
 legacy.refresh()
-const legacyInputs = legacy.nodes.filter((node) => node.type === 'input')
+const legacyInputs = legacy.nodes.filter((node) => node.type === 'input' && node.props.type === 'checkbox')
 equal('an old settings document renders the three switches at their defaults',
   legacyInputs.slice(1).map((node) => node.props.checked), [true, false, true])
+
+// Exercise the rendered controls and transport together, including rejected saves.
+console.log('\n[8] custom import, fixed selection, preview and removal')
+const bundled = { name: 'bundled.mp4', src: '/builtin', bytes: 40 }
+const imported = { name: 'custom/00000000-0000-0000-0000-000000000000_my intro.mp4', displayName: 'my intro.mp4', custom: true, src: '/custom', bytes: 24 }
+const settings = { status: 'available', revision: 1, writable: true,
+  value: { enabled: true, disabledClips: [], fadeMs: 4000, enterMode: 'click', sound: false, clickToEnter: true, showHint: false } }
+const json = (value, ok = true) => Promise.resolve({ ok, status: ok ? 200 : 500, json: () => Promise.resolve(value) })
+let rows = [bundled]
+const requests = [], previews = []
+const importerOptions = {
+  pool: rows,
+  overlay: { preview: options => { previews.push(options); return true } },
+  fetch: (url, options = {}) => {
+    requests.push({ url, ...options })
+    if (options.method === 'POST') { rows = [bundled, imported]; return json({ ok: true, clip: imported }) }
+    if (options.method === 'DELETE') { rows = [bundled]; return json({ ok: true }) }
+    return json({ clips: rows })
+  },
+}
+const importer = mountCard(settings, importerOptions)
+const expand = card => { card.click(card.nodes.find(node => node.props.className === 'dshba-head')); card.refresh() }
+const button = (card, label) => card.refresh().find(node => node.type === 'button' && card.textOf(node) === label)
+const fileInput = card => card.refresh().find(node => node.type === 'input' && node.props.type === 'file')
+const checkedClips = card => card.refresh().filter(node => node.type === 'input' && node.props.type === 'checkbox')
+  .slice(4).map(node => node.props.checked)
+expand(importer)
+check('import control is visible only in the expanded card', fileInput(importer) !== undefined)
+const chosenFile = { name: 'my intro.mp4', size: 24, type: 'video/mp4' }
+const event = { target: { files: [chosenFile], value: 'selected' } }
+await fileInput(importer).props.onChange(event)
+await settle()
+equal('raw selected file is sent in one authenticated POST',
+  [requests[0].url, requests[0].method, requests[0].credentials, requests[0].body === chosenFile],
+  ['/plugins/dsh-boot-animation/upload?name=my%20intro.mp4', 'POST', 'same-origin', true])
+equal('file input resets for selecting the same file again', event.target.value, '')
+equal('import automatically enables only the new clip', importer.writes.at(-1).ops,
+  [{ op: 'set', path: ['disabledClips'], value: [bundled.name] }])
+equal('the selected checkbox reflects saved settings', checkedClips(importer), [false, true])
+check('import success is shown after selection save', importer.textOf(importer.tree).includes('视频已导入并设为开屏'))
+check('custom row displays its original filename', importer.textOf(importer.tree).includes('my intro.mp4'))
+const customRow = importer.nodes.find(node => node.props.className === 'dshba-clip' && importer.textOf(node).includes('my intro.mp4'))
+const previewButton = customRow.children.find(node => node?.type === 'button' && importer.textOf(node) === '预览')
+importer.click(previewButton)
+equal('custom preview receives current playback effects',
+  [previews[0].name, previews[0].fadeMs, previews[0].enterMode, previews[0].sound, previews[0].clickToEnter, previews[0].showHint],
+  [imported.name, 4000, 'click', false, true, false])
+previews[0].onDone()
+await button(importer, '设为开屏').props.onClick()
+equal('fixed selection disables every other current clip', importer.writes.at(-1).ops,
+  [{ op: 'set', path: ['disabledClips'], value: [imported.name] }])
+check('only custom clips have removal controls', importer.refresh().filter(node => node.type === 'button' && importer.textOf(node) === '移除').length === 1)
+await button(importer, '移除').props.onClick()
+check('custom removal uses its encoded stored identity', requests.some(req => req.method === 'DELETE'
+  && req.url.endsWith(encodeURIComponent(imported.name.slice(7)))))
+check('removed clip disappears from rendered rows', !importer.textOf(importer.tree).includes('my intro.mp4'))
+
+const failed = mountCard(settings, { pool: [bundled], rejectWrite: true,
+  fetch: (url, options = {}) => options.method === 'POST' ? json({ ok: true, clip: imported }) : json({ clips: [bundled, imported] }) })
+expand(failed)
+await fileInput(failed).props.onChange({ target: { files: [chosenFile], value: 'selected' } })
+check('a rejected settings save never claims video was selected', !failed.textOf(failed.tree).includes('视频已导入并设为开屏')
+  && failed.textOf(failed.tree).includes('选择设置未保存'))
+
+let invalidRequests = 0
+const invalid = mountCard(settings, { pool: [bundled], fetch: () => { invalidRequests++; throw new Error('must not send') } })
+expand(invalid)
+await fileInput(invalid).props.onChange({ target: { files: [{ name: 'bad.txt', size: 12 }], value: 'selected' } })
+await fileInput(invalid).props.onChange({ target: { files: [{ name: 'large.mp4', size: 256 * 1024 * 1024 + 1 }], value: 'selected' } })
+equal('invalid or oversized file is rejected before upload', invalidRequests, 0)
+
+const stale = mountCard({ ...settings, value: { ...settings.value, disabledClips: ['missing.mp4'] } }, { pool: [bundled, imported] })
+expand(stale)
+const staleClipInputs = stale.nodes.filter(node => node.type === 'input' && node.props.type === 'checkbox').slice(4)
+staleClipInputs[0].props.onChange({ target: { checked: false } })
+equal('old removed names do not block pool selection', stale.writes.at(-1).ops,
+  [{ op: 'set', path: ['disabledClips'], value: ['missing.mp4', bundled.name] }])
+
+const canceled = mountCard(settings, { pool: [bundled, imported], confirm: () => false,
+  fetch: () => { throw new Error('canceled removal must not send') } })
+expand(canceled)
+await button(canceled, '移除').props.onClick()
+equal('canceling removal does not change settings', canceled.writes.length, 0)
 
 // A bundle that is not the current build of the source is the one artifact
 // failure this package cannot detect at runtime: the shell serves lib/, the

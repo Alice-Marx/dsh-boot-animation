@@ -7,7 +7,7 @@ silently, and how to prove a change is safe.
 > **Porting note (DSH 0.2.0-rc.2).** The Host settings contract changed: a plugin
 > no longer *registers* a settings namespace, it *declares* `Config`. Everything
 > below reflects that. The wide `verify-*` set the README names belongs to the
-> author's working copy; what actually ships here is the three suites under
+> author's working copy; what actually ships here is the four suites under
 > [`verify/`](verify/) — see [Verifying a change](#verifying-a-change).
 
 Human-facing usage lives in [MANUAL.md](MANUAL.md). The long forensic record —
@@ -23,6 +23,7 @@ then dissolves into the app. No DSH source is modified: it injects a script into
 | Half | File | Job |
 |---|---|---|
 | Host (Node) | `entry.js` | Serves clips over HTTP with Range, declares the `Config` schema the settings namespace is derived from, injects the pre-boot screen into the index |
+| Host custom media | `src/custom-clips.js` | Authenticated streaming import/read/removal, with persistent per-profile files outside the npm package |
 | Browser (pre-boot) | `src/boot-screen.js` | The overlay itself: framework-free, injected as text, must run before the shell |
 | Browser (plugin) | `src/client.js` → `lib/client.js` | Reports activation to the overlay, and renders the settings card |
 
@@ -128,9 +129,10 @@ node build-client.mjs          # only if src/client.js changed
 node verify/verify-entry.mjs   # Host half: Config, injection, manifest route
 node verify/verify-degraded.mjs # the old-schema-library degradation path
 node verify/verify-options.mjs  # the three interaction switches, against a stub DOM
+node verify/verify-custom-clips.mjs # real HTTP import/auth/Range/persistence/removal in temporary profiles
 ```
 
-`verify/` **is** part of this tree, and those three suites are what it can run
+`verify/` **is** part of this tree, and those four suites are what it can run
 offline with no DSH process, no ports and no prompts. `verify-entry.mjs` and
 `verify-degraded.mjs` cover the Host half; `verify-options.mjs` runs
 `src/boot-screen.js` itself in a minimal DOM, because the screen is a script text
@@ -185,6 +187,8 @@ still evaluates when the resolved schema library lacks `.volatile()`.
   list. (The author's working copy enforces it with a `verify-tree-hygiene.mjs`
   suite, which is not part of this tree.)
 - Generated `.ps1` / `.bat` / `.cmd` are **pure ASCII** — content, not filename.
-- The three user clips are the only media the pool should hold; rewrites keep their
-  originals in `assets/videos/originals/`, which the pool ignores because it lists
-  regular files only.
+- Bundled media stays in `assets/videos/`; rewrites keep its originals in the
+  ignored `originals/` subdirectory. Imports belong to
+  `<profile>/data/dsh-boot-animation/videos`, never to the npm package. Access to
+  private media must pass `connection.requestRejection(req)` before reading or
+  writing; profile paths and media files must not follow symlinks.
