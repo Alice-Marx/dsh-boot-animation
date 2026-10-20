@@ -2,6 +2,8 @@
 
 Replaces the DSH startup page with a chosen or random local video, then transitions into the app, with configurable playback and fallback controls. It does not modify DSH core source; future compatibility is not guaranteed.
 
+**Language:** English | [简体中文](README.zh-CN.md)
+
 This is a community plugin, not affiliated with or endorsed by DeepSeek.
 
 - **Package:** [`@ljwei-stak/dsh-boot-animation`](https://www.npmjs.com/package/@ljwei-stak/dsh-boot-animation)
