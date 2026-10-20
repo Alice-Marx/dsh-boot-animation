@@ -1,0 +1,10 @@
+# Config object for the existing boot-animation plugin entry.
+# This is a fragment, not a separate file that the plugin automatically loads.
+# Prefer Settings > Plugins > startup animation for editing these values.
+enabled: true
+fadeMs: 2000
+enterMode: tail
+disabledClips: []
+sound: true
+clickToEnter: false
+showHint: true

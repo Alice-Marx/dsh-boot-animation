@@ -11,8 +11,8 @@ silently, and how to prove a change is safe.
 > [`verify/`](verify/) — see [Verifying a change](#verifying-a-change).
 
 Human-facing usage lives in [MANUAL.md](MANUAL.md). The long forensic record —
-every bug, why it happened, what the evidence was — is [README.md](README.md).
-Read this file first; go to README only for the history of a specific symptom.
+every bug, why it happened, what the evidence was — is [docs/DEVELOPMENT_NOTES.md](docs/DEVELOPMENT_NOTES.md).
+Read this file first; go to the archived development notes only for the history of a specific symptom.
 
 ## What it is
 
@@ -139,7 +139,7 @@ offline with no DSH process, no ports and no prompts. `verify-entry.mjs` and
 and a grep for `cfg.sound` would pass on a file that greps it and ignores it.
 
 The wider `verify-*` set and the `verify-all.mjs` aggregator named in
-[README.md](README.md) belong to the author's working copy and are **not** in this
+[docs/DEVELOPMENT_NOTES.md](docs/DEVELOPMENT_NOTES.md) belong to the author's working copy and are **not** in this
 tree. What `tools/` holds here is the media and preview tooling:
 
 | Tool | What it is for |

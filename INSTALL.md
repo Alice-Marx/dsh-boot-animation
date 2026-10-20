@@ -1,5 +1,7 @@
 # 安装说明（给别人看的）
 
+> Current 0.4.0 installation commands, Desktop offline upgrades, permissions and compatibility are in [README.md](README.md). The optional link-based methods below are legacy alternatives. Import videos through the settings card to keep copies outside the installed package.
+
 这是一份**可分享的副本**：解压后照下面做就能装上。全程不需要原作者的那台机器。
 
 > 只是想自己用？看 [MANUAL.md](MANUAL.md)。想改代码？看 [AGENTS.md](AGENTS.md)。

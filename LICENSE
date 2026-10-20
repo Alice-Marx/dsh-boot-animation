@@ -24,6 +24,6 @@ SOFTWARE.
 
 ## The video clips in `assets/videos/`
 
-The three `.mp4` files are the author's own animation work and are distributed
+The bundled `.mp4` files are the author's own animation work and are distributed
 under the same MIT terms as the code. Replace them with your own footage if you
 prefer — the plugin discovers whatever is in that directory. See MANUAL.md.
