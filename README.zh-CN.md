@@ -1,5 +1,7 @@
 # dsh-boot-animation
 
+[![Listed on dsh-plugin.org](https://dsh-plugin.org/badges/listed.svg)](https://dsh-plugin.org/plugins/alice-marx/dsh-boot-animation)
+
 语言：简体中文 | [English](README.md)
 
 用选定或随机的本地视频替换 DSH 启动页，随后过渡进入应用，并提供可配置的播放与回退控制。它不会修改 DSH 核心源码；未来的兼容性不作保证。
@@ -139,5 +141,3 @@ node verify/verify-custom-clips.mjs
 ## 插件目录提交
 
 [一份可直接复制的提交草稿](docs/PLUGIN_SUBMISSION.md)遵循 hub 模板。徽章用于标明插件已收录于社区目录，不代表官方背书或质量保证。
-
-[![Listed on dsh-plugin.org](https://dsh-plugin.org/badges/listed.svg)](https://dsh-plugin.org/plugins/alice-marx/dsh-boot-animation)

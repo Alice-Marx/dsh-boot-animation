@@ -1,5 +1,7 @@
 # dsh-boot-animation
 
+[![Listed on dsh-plugin.org](https://dsh-plugin.org/badges/listed.svg)](https://dsh-plugin.org/plugins/alice-marx/dsh-boot-animation)
+
 Replaces the DSH startup page with a chosen or random local video, then transitions into the app, with configurable playback and fallback controls. It does not modify DSH core source; future compatibility is not guaranteed.
 
 **Language:** English | [简体中文](README.zh-CN.md)
@@ -139,5 +141,3 @@ See [AGENTS.md](AGENTS.md), [MANUAL.md](MANUAL.md), and [INSTALL.md](INSTALL.md)
 ## Directory submission
 
 A [ready-to-copy submission draft](docs/PLUGIN_SUBMISSION.md) follows the hub template. The badge confirms the plugin is listed in the community directory; it does not imply official endorsement or a quality guarantee.
-
-[![Listed on dsh-plugin.org](https://dsh-plugin.org/badges/listed.svg)](https://dsh-plugin.org/plugins/alice-marx/dsh-boot-animation)
