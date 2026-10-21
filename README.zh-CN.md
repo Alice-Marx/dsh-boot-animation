@@ -138,8 +138,6 @@ node verify/verify-custom-clips.mjs
 
 ## 插件目录提交
 
-[一份可直接复制的提交草稿](docs/PLUGIN_SUBMISSION.md)遵循 hub 模板。其收录徽章会保持非活动状态，直到匹配的详情页经过验证；它不是认可，也不代表已获 marketplace 收录。
+[一份可直接复制的提交草稿](docs/PLUGIN_SUBMISSION.md)遵循 hub 模板。徽章用于标明插件已收录于社区目录，不代表官方背书或质量保证。
 
-<!-- 仅在验证实际的规范详情页 URL 后再激活。
-[![Listed on dsh-plugin.org](https://dsh-plugin.org/badges/listed.svg)](https://dsh-plugin.org/plugins/your-owner/your-plugin-slug)
--->
+[![Listed on dsh-plugin.org](https://dsh-plugin.org/badges/listed.svg)](https://dsh-plugin.org/plugins/alice-marx/dsh-boot-animation)

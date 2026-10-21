@@ -138,8 +138,6 @@ See [AGENTS.md](AGENTS.md), [MANUAL.md](MANUAL.md), and [INSTALL.md](INSTALL.md)
 
 ## Directory submission
 
-A [ready-to-copy submission draft](docs/PLUGIN_SUBMISSION.md) follows the hub template. Its listing badge remains inactive until a matching detail page has been verified; it is not an endorsement or a claim of marketplace acceptance.
+A [ready-to-copy submission draft](docs/PLUGIN_SUBMISSION.md) follows the hub template. The badge confirms the plugin is listed in the community directory; it does not imply official endorsement or a quality guarantee.
 
-<!-- Activate only after verifying the actual canonical detail-page URL.
-[![Listed on dsh-plugin.org](https://dsh-plugin.org/badges/listed.svg)](https://dsh-plugin.org/plugins/your-owner/your-plugin-slug)
--->
+[![Listed on dsh-plugin.org](https://dsh-plugin.org/badges/listed.svg)](https://dsh-plugin.org/plugins/alice-marx/dsh-boot-animation)
