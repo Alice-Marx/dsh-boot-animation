@@ -449,14 +449,25 @@ function mountCard(snapshot, options = {}) {
   vm.createContext(sandbox)
   vm.runInContext(BUNDLE, sandbox, { filename: 'lib/client.js' })
   const registered = []
+  // Every registration's own options, in order: which slot, and the id or key
+  // the page looks it up with. The card's reachability is exactly this list.
+  const entries = []
+  const scopeStub = { subscribe: () => () => {}, getSnapshot: () => ({}), mutate: () => true }
   const services = {
     slots: {
-      inject: (key, register) => register(),
-      register: (entry, component) => { registered.push(component); return () => {} },
+      // A slot this build does not declare never runs its callback, which is the
+      // whole reason the card can name three slots and register into whichever
+      // ones exist. `options.slots` narrows the declaration set for the legacy
+      // build's case.
+      inject: (key, register) => {
+        if (options.slots !== undefined && !options.slots.includes(key)) return () => {}
+        return register()
+      },
+      register: (entry, component) => { entries.push({ entry, component }); registered.push(component); return () => {} },
     },
     locale: { register: () => {}, bind: () => (key) => key },
     configForms: {
-      get: () => ({}),
+      get: () => scopeStub,
       whileServed: (namespaces, callback) => { callback(); return () => {} },
     },
   }
@@ -470,6 +481,9 @@ function mountCard(snapshot, options = {}) {
   const draw = () => {
     cursor = 0
     const component = registered[0]
+    // The list entry of an older build is registered one microtask after the
+    // page's declarations; until then there is nothing to draw.
+    if (component === undefined) return tree
     tree = component({ view: 'page', runtime: React, form })
     return tree
   }
@@ -490,7 +504,7 @@ function mountCard(snapshot, options = {}) {
 
   refresh()
   return {
-    React, writes, doc, textOf, click, draw, refresh,
+    React, writes, doc, textOf, click, draw, refresh, entries, scopeStub,
     get nodes() { return nodes },
     get tree() { return tree },
   }
@@ -622,10 +636,61 @@ expand(canceled)
 await button(canceled, '移除').props.onClick()
 equal('canceling removal does not change settings', canceled.writes.length, 0)
 
+// The slot contract. 0.2.2-rc.1 repurposed `plugins.item` for the kernel's own
+// feature group and moved a third-party bundle's configuration to two keyed
+// slots the package page renders. A card that only registers the old slot still
+// shows up — in the WRONG section — while the plugin's own page, which is where
+// anyone opens the plugin to configure it, shows nothing at all. These checks
+// are that sentence turned into assertions.
+console.log('\n[9] the card reaches the page the running build renders it on')
+const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'))
+const pkgName = pkg.name
+const rowKey = pkgName + '#boot-animation'
+
+const modern = mountCard(settings)
+// The list entry is decided one microtask after the page's declarations land,
+// so the assertions read the ledger the way the page would: after that turn.
+await Promise.resolve()
+await Promise.resolve()
+const byName = (card, name) => card.entries.filter((entry) => entry.entry.name === name)
+
+const bundleSection = byName(modern, 'plugins.bundle.config')
+check('the bundle section is registered once', bundleSection.length === 1, String(bundleSection.length))
+equal('...keyed by the package name the page looks it up with',
+  bundleSection[0]?.entry.key, pkgName)
+const rowSection = byName(modern, 'plugins.row.config')
+check('the row page is registered once', rowSection.length === 1, String(rowSection.length))
+equal('...keyed <package>#<row id>', rowSection[0]?.entry.key, rowKey)
+check('a build with the keyed slots does NOT also list the card under 内置插件配置',
+  byName(modern, 'plugins.item').length === 0,
+  modern.entries.map((entry) => entry.entry.name).join(', '))
+equal('both registrations share the one card component',
+  bundleSection[0]?.component === rowSection[0]?.component, true)
+
+// The bundle section is rendered with owner props only — no `form` — so the
+// form has to come from the entry's own inject face. Without it the card would
+// render its defaults and write nowhere.
+const injected = bundleSection[0]?.entry.inject()
+equal('the bundle section supplies its own settings scope', injected?.scope, modern.scopeStub)
+equal('...and the React it builds with', typeof injected?.runtime?.createElement, 'function')
+
+// The build this card was originally written for: only `plugins.item` exists.
+const legacySlots = mountCard(settings, { slots: ['plugins.item'] })
+await Promise.resolve()
+await Promise.resolve()
+const legacyEntry = byName(legacySlots, 'plugins.item')
+check('an older build still gets its list entry', legacyEntry.length === 1, String(legacyEntry.length))
+equal('...under the settings namespace id', legacyEntry[0]?.entry.id, 'boot-animation')
+check('...and no entry for a slot that build never declares',
+  legacySlots.entries.length === 1, legacySlots.entries.map((entry) => entry.entry.name).join(', '))
+
+// The bundle name in the source is the key, and the build is what keeps it true.
+const sourceName = /const BUNDLE_NAME = '([^']+)'/.exec(CLIENT)?.[1]
+equal('BUNDLE_NAME in the source is this package\'s name', sourceName, pkgName)
+
 // A bundle that is not the current build of the source is the one artifact
 // failure this package cannot detect at runtime: the shell serves lib/, the
 // repository reads src/, and a stale lib/ looks like "my change did nothing".
-const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'))
 const head = 'window.__ModuleLoader__.load({ id: ' + JSON.stringify(pkg.name)
   + ', factory: (require) => {\n'
   + 'var module = { exports: {} }; var exports = module.exports;\n'

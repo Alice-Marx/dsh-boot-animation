@@ -140,6 +140,25 @@ porting it.
 | **The store's fetch never passes an `AbortSignal`.** | In this runtime the global `fetch` and a locally constructed `AbortController` come from different realms, and the signal makes fetch reject outright — which a catch would swallow and turn every store read into a silent failure. The timeout is a race instead. |
 | **A store index that cannot be fetched answers the LAST GOOD list with `ok:false`.** | A flaky network costs freshness, not the feature — an empty list would hide templates the user already knows are there. |
 
+## Where the settings card lives
+
+The card is one component registered into three slots, because the Plugins page
+moved under it. `plugins.item` was — and on builds up to 0.2.1 still is — the
+list of configuration cards. From 0.2.2-rc.1 that slot renders the *kernel's own*
+feature group (子智能体 / 网页搜索 / Agent 循环 …), and a third-party bundle's
+configuration moved to two keyed slots on the plugin's package page. A card
+registered only in the old slot still appears, in the wrong section, while the
+plugin's own page — the only place a user opens the plugin to configure it —
+shows no configuration at all. That is not a cosmetic bug: it reads as "this
+plugin has no settings", which is exactly how it was reported.
+
+| Rule | What happens if it is broken |
+|---|---|
+| **The card registers into `plugins.bundle.config` keyed by this package's name, and into `plugins.row.config` keyed `<package>#<row id>`.** | Those two keys are the exact lookups the package page performs (`keysOf('plugins.bundle.config')`, `rowConfigKey(pkg.name, row.rowId)`); one character out and the page renders neither the section nor the row's configure button, with no error anywhere. `BUNDLE_NAME` in `src/client.js` is the key, `build-client.mjs` refuses to build when it disagrees with `package.json`, and `verify-options.mjs` asserts both spellings. |
+| **A slot is claimed with `slots.inject`, never a bare `register` on a guessed timeline.** | `slots.inject(key, cb)` runs `cb` only while that slot is declared and disposes it when it collapses, so naming a slot a build does not have costs nothing. A bare `register` on a slot that build never declares throws — inside the ledger's store notification, which kills the *card that is mounted* (see the idempotency rule above). |
+| **The list entry is decided one microtask after the page's declarations, and is dropped when the keyed slots exist.** | Registering all three unconditionally would put a second copy of the card in 内置插件配置, a section that belongs to the kernel's pages — a duplicate nobody asked for, in the one place it does not belong. The probe is our own `plugins.bundle.config` callback flag, not `slots.spec()` (which does not see page-mounted declarations); every declaration and every inject callback for that page runs in one synchronous batch, so one turn later the answer is final and nothing has painted. |
+| **The bundle section is rendered with owner props only — no `form`.** | `renderSlot('plugins.bundle.config', { view: 'page' }, …)` passes no `form`, unlike the item and row slots. The entry's own `inject` face must therefore carry `scope: configForms.get(namespace)`, which is the same object the page would have passed as `form`; without it the card renders its defaults and every control writes nowhere. `cardForm()` already prefers `form` and falls back to `scope`, and `verify-options.mjs` asserts the face carries it. |
+
 ## Change → restart matrix
 
 | Changed | To see it |

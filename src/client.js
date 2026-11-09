@@ -38,10 +38,38 @@ const SETTINGS_NAMESPACE = 'boot-animation'
 
 /**
  * The Plugins settings page dispatches cards by slot name. It was
- * `settings.plugin.item` in the API this plugin was first written against;
- * current builds (verified against 0.2.0-rc.2) register into `plugins.item`.
+ * `settings.plugin.item` in the API this plugin was first written against, and
+ * `plugins.item` in the builds this card was written for (verified against
+ * 0.2.0-rc.2).
+ *
+ * 0.2.2-rc.1 kept that slot but repurposed it: `plugins.item` entries are the
+ * page's *built-in feature* group (子智能体 / 网页搜索 / Agent 循环 …), and a
+ * third-party bundle's own configuration moved to two KEYED slots the package
+ * page renders — `plugins.bundle.config` for the bundle's section, and
+ * `plugins.row.config` for each row's 配置 page. Both are looked up by key:
+ * the bundle's package name, and `<package name>#<row id>`.
+ *
+ * That is a discoverability break, not a cosmetic one: a card registered only
+ * in `plugins.item` still renders — under 内置插件配置, beside the kernel's own
+ * pages — while the plugin's OWN page, which is where a user opens the plugin
+ * to configure it, shows no configuration section at all.
  */
 const SLOT = 'plugins.item'
+
+/** The package page's configuration section, keyed by the bundle's name. */
+const BUNDLE_SLOT = 'plugins.bundle.config'
+
+/** One row's configuration page, keyed by `<bundle>#<row id>`. */
+const ROW_SLOT = 'plugins.row.config'
+
+/**
+ * This package's own name, which is the key the plugin manager looks the
+ * bundle section up with (it matches `pkg.name` from the Host inventory).
+ *
+ * `build-client.mjs` asserts it equals `package.json`'s `name`, so a fork that
+ * renames the package cannot ship a card keyed to a bundle nobody installed.
+ */
+const BUNDLE_NAME = '@ljwei-stak/dsh-boot-animation'
 
 /** Client dictionary namespace this card's tab label is read from. */
 const LOCALE_NAMESPACE = 'bootAnimation'
@@ -1899,38 +1927,96 @@ exports.apply = function apply(ctx) {
         // so it cannot provide this. Disposing the previous registration before
         // registering again, plus owning the failure so it never reaches the store,
         // is what makes a re-entry harmless.
-        let registration = null
-        const contribute = function () {
-          if (registration !== null) return
+        let registrations = []
+        let serving = false
+        let bundleDeclared = false
+
+        /**
+         * Register the card into one slot, once that slot is declared.
+         *
+         * `slots.inject` is what makes a build-independent card possible: it runs
+         * the callback only while the slot exists, so a name this build never
+         * declares registers nothing and costs nothing. The returned handle owns
+         * both the wait and the registration.
+         * @param name - slot name.
+         * @param options - the slot's own entry options (id for a list slot, key for a keyed one).
+         * @param onDeclare - told when this build declares the slot, before the entry is written.
+         * @returns the disposer, or null when the wait itself could not be installed.
+         */
+        const registerInto = function (name, options, onDeclare) {
           try {
-            registration = slots.inject(SLOT, () => slots.register(
-              {
-                name: SLOT,
-                id: SETTINGS_NAMESPACE,
-                order: 60,
-                label: () => t('title'),
-                locale: LOCALE_NAMESPACE,
-                // Read lazily: the scope binds when the slot actually renders.
-                inject: () => ({ runtime: React, scope: forms.get(SETTINGS_NAMESPACE) }),
-              },
-              BootAnimationEntry,
-            ))
+            return slots.inject(name, () => {
+              if (typeof onDeclare === 'function') onDeclare()
+              try {
+                return slots.register({
+                  name,
+                  ...options,
+                  locale: LOCALE_NAMESPACE,
+                  // Read lazily: the scope binds when the slot actually renders.
+                  inject: () => ({ runtime: React, scope: forms.get(SETTINGS_NAMESPACE) }),
+                }, BootAnimationEntry)
+              } catch (error) {
+                // A racing registration must not become an exception in the ledger's
+                // notification: answer a no-op disposer and log, so the card that IS
+                // mounted keeps its updates.
+                console.warn('boot-animation: settings card not registered into ' + name, error)
+                return function () {}
+              }
+            })
           } catch (error) {
-            // A racing registration must not become an exception in the ledger's
-            // notification: drop our handle and log, so the card that IS mounted
-            // keeps its updates.
-            registration = null
-            console.warn('boot-animation: settings card not registered', error)
+            console.warn('boot-animation: settings card not registered into ' + name, error)
+            return null
           }
         }
+
+        const contribute = function () {
+          if (registrations.length > 0) return
+          serving = true
+          bundleDeclared = false
+
+          // The plugin's own page (0.2.2-rc.1 and later): the bundle's section,
+          // keyed exactly as the page looks it up — `pkg.name`.
+          registrations.push(registerInto(BUNDLE_SLOT, { key: BUNDLE_NAME }, () => {
+            bundleDeclared = true
+          }))
+
+          // The same card one level down, on the row's 配置 page, keyed
+          // `<package name>#<row id>`. Registering both is deliberate: the
+          // bundle section is what a user finds first, and the row page is the
+          // only place that gets the page's own `form` prop.
+          registrations.push(registerInto(ROW_SLOT, {
+            key: BUNDLE_NAME + '#' + SETTINGS_NAMESPACE,
+          }))
+
+          // The list entry this card was written for. On a build that declares
+          // the keyed slots it is a SECOND copy in 内置插件配置 — a section that
+          // belongs to the kernel's own pages — so it is dropped there, and on
+          // every older build it stays the only door.
+          //
+          // Which build this is can only be told once the page has declared its
+          // slots, and each `slots.inject` callback for that page runs in the
+          // same synchronous batch as the declarations. One microtask later the
+          // answer is final and nothing has painted, so the dropped entry is
+          // never visible.
+          void Promise.resolve().then(() => {
+            if (!serving || bundleDeclared) return
+            registrations.push(registerInto(SLOT, {
+              id: SETTINGS_NAMESPACE,
+              order: 60,
+              label: () => t('title'),
+            }))
+          })
+        }
         const withdraw = function () {
-          if (registration === null) return
-          const dispose = registration
-          registration = null
-          try {
-            if (typeof dispose === 'function') dispose()
-          } catch (error) {
-            console.warn('boot-animation: settings card not withdrawn', error)
+          serving = false
+          const live = registrations
+          registrations = []
+          for (const dispose of live) {
+            try {
+              if (typeof dispose === 'function') dispose()
+            } catch (error) {
+              console.warn('boot-animation: settings card not withdrawn', error)
+            }
           }
         }
         const serve = function () {
@@ -1946,7 +2032,8 @@ exports.apply = function apply(ctx) {
         // be indistinguishable from "the services never arrived". Diagnostic mode
         // says which one happened.
         if (typeof location !== 'undefined' && String(location.search).indexOf('dshbootdiag=1') >= 0) {
-          console.info('[boot-animation] settings card registered into ' + SLOT)
+          console.info('[boot-animation] settings card registered into ' + BUNDLE_SLOT
+            + ' and ' + ROW_SLOT + (bundleDeclared ? '' : ', with the ' + SLOT + ' fallback'))
         }
       } catch (error) {
         console.warn('boot-animation: settings card not registered', error)
