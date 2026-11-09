@@ -1,6 +1,6 @@
 {
   "name": "@ljwei-stak/dsh-boot-animation",
-  "version": "0.6.5",
+  "version": "0.6.6",
   "description": "鲸鱼娘启动加载动画：点击进入（Esc/空格放行）、多片随机、启动进度可见、失败有兜底；数据驱动开屏模板（分幕/时间线/iframe，兼容 dsh-boot-suite 格式）、用户 BGM、可视化模板编辑器与模板商店。不改 DSH 本体源码。",
   "license": "MIT",
   "author": "Alice-Marx",
