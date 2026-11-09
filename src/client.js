@@ -294,14 +294,24 @@ const CSS = [
   '.dshba-msg{margin-top:8px;font-size:11.5px;line-height:1.5;',
   'color:var(--dsw-alias-label-tertiary,rgba(127,127,127,.8))}',
   '.dshba-msg.err{color:var(--dsw-alias-label-error,#d24a43)}',
-  // The template editor overlay: a full-screen layer inside the settings page.
-  // `position:fixed` rather than a dialog component, so it escapes the card's
-  // own scroll container and needs nothing from the shell that owns this page.
-  '.dshba-editor{position:fixed;inset:0;z-index:2147483000;display:flex;flex-direction:column;',
-  'background:var(--dsw-alias-bg-layer-1,#101418);color:var(--dsw-alias-label-primary,#eee)}',
-  '.dshba-editorbar{display:flex;align-items:center;gap:12px;padding:8px 14px;flex:none;',
+  // The template editor overlay. A CENTRED DIALOG with a top gap, not a
+  // full-bleed layer: the desktop build draws its own minimise / maximise /
+  // close buttons OVER the page's top-right corner, so an overlay at `inset: 0`
+  // put this card's 关闭 button underneath them — reported as "退出按钮和 DSH 的
+  // 关闭重合了". The gap is padding on the shell, so it holds on every platform
+  // whatever height that strip is.
+  '.dshba-editorshell{position:fixed;inset:0;z-index:2147483000;display:flex;align-items:stretch;',
+  'justify-content:center;padding:46px 26px 26px;background:rgba(8,10,13,.62);',
+  'backdrop-filter:blur(3px);overscroll-behavior:contain}',
+  '.dshba-editor{display:flex;flex-direction:column;width:100%;max-width:1560px;min-height:0;',
+  'border-radius:14px;overflow:hidden;border:.5px solid var(--dsw-alias-border-l3,rgba(127,127,127,.4));',
+  'background:var(--dsw-alias-bg-layer-1,#101418);color:var(--dsw-alias-label-primary,#eee);',
+  'box-shadow:0 24px 64px rgba(0,0,0,.5)}',
+  '.dshba-editorbar{display:flex;align-items:center;gap:12px;padding:9px 12px;flex:none;',
   'border-bottom:1px solid var(--dsw-alias-border-l2,rgba(127,127,127,.34))}',
-  '.dshba-editortitle{flex:1;min-width:0;font-size:13px;font-weight:600}',
+  '.dshba-editortitle{flex:none;font-size:13px;font-weight:600}',
+  '.dshba-editorsub{flex:1;min-width:0;font-size:11.5px;overflow:hidden;text-overflow:ellipsis;',
+  'white-space:nowrap;color:var(--dsw-alias-label-tertiary,rgba(127,127,127,.85))}',
   '.dshba-editorframe{flex:1;min-height:0;width:100%;border:0;background:#0b0e12}',
   // The template form's controls: a native select and a native range, dressed
   // with the same tokens as the option buttons so the two forms read as one
@@ -1841,18 +1851,24 @@ function BootAnimationCard(props) {
       React.createElement('div', { className: 'dshba-body' }, sections),
       editorOpen
         ? React.createElement('div', {
-          className: 'dshba-editor',
+          className: 'dshba-editorshell',
           role: 'dialog',
           'aria-label': '模板编辑器',
+          // Clicking the backdrop (never the panel) closes, the way every dialog
+          // the user already knows in this app does.
+          onClick: (event) => { if (event.target === event.currentTarget) closeEditor() },
         },
-        React.createElement('div', { className: 'dshba-editorbar' },
-          React.createElement('span', { className: 'dshba-editortitle' }, '模板编辑器 · 存到用户模板目录后关闭即刷新'),
-          React.createElement('button', { type: 'button', className: 'dshba-opt', onClick: closeEditor }, '关闭')),
-        React.createElement('iframe', {
-          className: 'dshba-editorframe',
-          src: TPL_ROUTE + '/editor',
-          title: '模板编辑器',
-        }))
+        React.createElement('div', { className: 'dshba-editor' },
+          React.createElement('div', { className: 'dshba-editorbar' },
+            React.createElement('span', { className: 'dshba-editortitle' }, '模板编辑器'),
+            React.createElement('span', { className: 'dshba-editorsub' },
+              '改完点「保存到本地」，回来这张卡片的上拉框里就能选到'),
+            React.createElement('button', { type: 'button', className: 'dshba-opt', onClick: closeEditor }, '关闭')),
+          React.createElement('iframe', {
+            className: 'dshba-editorframe',
+            src: TPL_ROUTE + '/editor',
+            title: '模板编辑器',
+          })))
         : null)
   } catch (error) {
     // A card that cannot draw itself must still leave the settings page usable.

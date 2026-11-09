@@ -710,7 +710,20 @@ const frame = findIframe()
 equal('the editor opens as a same-origin iframe overlay',
   frame?.props.src, '/plugins/dsh-boot-animation/tpl/editor')
 equal('...inside a dialog layer the card owns',
-  editorCard.refresh().find((node) => node.props.className === 'dshba-editor')?.props.role, 'dialog')
+  editorCard.refresh().find((node) => node.props.className === 'dshba-editorshell')?.props.role, 'dialog')
+// The dialog must NOT sit at the very top: the desktop shell paints its own
+// window controls over that strip, and a bar there put this card's 关闭 button
+// underneath them ("退出按钮和 DSH 的关闭重合了").
+const cssText = CLIENT.replace(/\/\*[\s\S]*?\*\//g, '')
+const shellAt = cssText.indexOf('.dshba-editorshell{')
+const shellCss = shellAt < 0 ? '' : cssText.slice(shellAt, shellAt + 420)
+check('the editor dialog keeps clear of the shell\'s window controls',
+  shellCss.includes('padding:46px'), shellCss.slice(0, 110))
+const panelAt = cssText.indexOf('.dshba-editor{')
+const panelCss = panelAt < 0 ? '' : cssText.slice(panelAt, panelAt + 420)
+check('...as a centred panel with its own rounded frame',
+  panelCss.includes('border-radius:14px') && panelCss.includes('max-width:1560px'),
+  panelCss.slice(0, 110))
 const editorLink = editorCard.refresh().find((node) => node.type === 'a'
   && String(node.props.href).endsWith('/tpl/editor'))
 equal('a real tab is still offered as the secondary control',
