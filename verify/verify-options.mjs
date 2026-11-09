@@ -423,7 +423,7 @@ function mountCard(snapshot, options = {}) {
     useEffect: () => { cursor++ },
     useSyncExternalStore: (subscribe, getSnapshot) => { cursor++; return getSnapshot() },
   }
-  const doc = makeDocument()
+  const doc = options.document ?? makeDocument()
   const form = {
     subscribe: () => () => {},
     getSnapshot: () => snapshot,
@@ -724,6 +724,26 @@ const panelCss = panelAt < 0 ? '' : cssText.slice(panelAt, panelAt + 420)
 check('...as a centred panel with its own rounded frame',
   panelCss.includes('border-radius:14px') && panelCss.includes('max-width:1560px'),
   panelCss.slice(0, 110))
+
+// A stylesheet that is only installed when its id is absent pins the FIRST
+// version of the card's CSS into the document for the life of the page. After a
+// plugin update the shell can swap the client module under a live page, so the
+// new markup would render against the OLD rules — which is how a shipped fix
+// produced "还是没有改进". The node is reused; its text is refreshed.
+console.log('\n[11] a live page picks up a new stylesheet, not the stale one')
+const staleDocument = makeDocument()
+const staleStyle = new Element('style')
+staleStyle.id = 'dsh-boot-animation-card-style'
+staleStyle.textContent = '.dshba-old{color:red}'
+staleDocument.getElementById = (id) => (id === 'dsh-boot-animation-card-style' ? staleStyle : null)
+mountCard(settings, { document: staleDocument, fetch: () => json({ clips: [bundled] }) })
+const styleNodes = staleDocument.head.children.filter((node) => node.tagName === 'STYLE')
+equal('the stale stylesheet node is reused, not duplicated', styleNodes.length, 0)
+check('...and its text is replaced with the current rules',
+  staleStyle.textContent.includes('.dshba-editorshell') && staleStyle.textContent.includes('padding:46px'),
+  staleStyle.textContent.slice(0, 60))
+check('...so the old rule is gone', !staleStyle.textContent.includes('.dshba-old'),
+  String(staleStyle.textContent.length) + ' chars')
 const editorLink = editorCard.refresh().find((node) => node.type === 'a'
   && String(node.props.href).endsWith('/tpl/editor'))
 equal('a real tab is still offered as the secondary control',

@@ -327,13 +327,24 @@ const CSS = [
   '.dshba-val{font-size:11.5px;color:var(--dsw-alias-label-tertiary,rgba(127,127,127,.8));white-space:nowrap}',
 ].join('')
 
-/** Install the card's stylesheet once per document. */
+/**
+ * Install the card's stylesheet, and keep it current.
+ *
+ * The style element is reused by id, but its TEXT is rewritten whenever it
+ * differs. Returning early on "a node with that id exists" is what made an
+ * updated card render with the PREVIOUS stylesheet after the shell swapped the
+ * client module under a live page: the new markup, the old rules, and a user
+ * saying "还是没有改进" about a fix that was already shipping. Writing the same
+ * text twice is free; keeping a stale one is not.
+ */
 function ensureStyle() {
-  if (document.getElementById(STYLE_ID) !== null) return
-  const style = document.createElement('style')
-  style.id = STYLE_ID
-  style.textContent = CSS
-  document.head.appendChild(style)
+  let style = document.getElementById(STYLE_ID)
+  if (style === null) {
+    style = document.createElement('style')
+    style.id = STYLE_ID
+    document.head.appendChild(style)
+  }
+  if (style.textContent !== CSS) style.textContent = CSS
 }
 
 /** Human-readable byte count. */
@@ -1021,13 +1032,18 @@ function BootAnimationCard(props) {
    * the id is the one the runtime's finish() removes again.
    */
   const ensureTplCaption = () => {
-    if (document.getElementById(TPL_CAPTION_ID) !== null) return
-    const style = document.createElement('style')
-    style.id = TPL_CAPTION_ID
+    // Same rule as `ensureStyle`: a node with this id is reused, never trusted to
+    // still carry the current text.
+    let style = document.getElementById(TPL_CAPTION_ID)
+    if (style === null) {
+      style = document.createElement('style')
+      style.id = TPL_CAPTION_ID
+      document.head.appendChild(style)
+    }
     // No backticks in a CSS blob — the project has lost a silent build to one.
-    style.textContent = 'body>span[style*="dsw-specific-sidebar-fill"]'
+    const text = 'body>span[style*="dsw-specific-sidebar-fill"]'
       + '{background-color:rgba(0,0,0,0)!important;color:#e8f2fb!important}'
-    document.head.appendChild(style)
+    if (style.textContent !== text) style.textContent = text
   }
 
   /**
