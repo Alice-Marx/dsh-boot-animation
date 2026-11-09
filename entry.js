@@ -348,18 +348,28 @@ function templateId(value, fallback) {
  */
 function resolveTpl(raw) {
   const source = raw !== null && typeof raw === 'object' ? raw : {}
+  // `tpl` is a nested object whose LEAVES are volatile, so the applied config
+  // hands over a plain object full of live references: `source[key]` is
+  // `{ get() }`, never the value. Reading it directly type-checks as "not a
+  // string / not a number" for every field, every guard falls through to
+  // `TPL_DEFAULTS`, and the whole template form is ignored by the runtime while
+  // the settings page happily shows what the user stored — the reported symptom
+  // was "I changed 身份名称 and the boot screen still prints the old one".
+  // One accessor, used by every reader below, is what keeps that from coming
+  // back: a nested field is only ever reached through `get`.
+  const get = (key) => readField(source, key)
   const out = { ...TPL_DEFAULTS }
   const num = (key, min, max) => {
-    const value = Number(source[key])
+    const value = Number(get(key))
     return Number.isFinite(value) ? Math.min(max, Math.max(min, value)) : TPL_DEFAULTS[key]
   }
-  const bool = (key) => (typeof source[key] === 'boolean' ? source[key] : TPL_DEFAULTS[key])
-  const oneOf = (key, allowed) => (allowed.includes(source[key]) ? source[key] : TPL_DEFAULTS[key])
-  const color = (key) => (typeof source[key] === 'string' && TPL_COLOR_RE.test(source[key])
-    ? source[key]
+  const bool = (key) => (typeof get(key) === 'boolean' ? get(key) : TPL_DEFAULTS[key])
+  const oneOf = (key, allowed) => (allowed.includes(get(key)) ? get(key) : TPL_DEFAULTS[key])
+  const color = (key) => (typeof get(key) === 'string' && TPL_COLOR_RE.test(get(key))
+    ? get(key)
     : TPL_DEFAULTS[key])
-  const text = (key) => (typeof source[key] === 'string' && source[key].trim() !== ''
-    ? source[key].slice(0, TPL_TEXT_MAX)
+  const text = (key) => (typeof get(key) === 'string' && get(key).trim() !== ''
+    ? get(key).slice(0, TPL_TEXT_MAX)
     : TPL_DEFAULTS[key])
   out.speed = num('speed', 0.35, 3)
   out.theme = oneOf('theme', TPL_THEMES)
@@ -370,7 +380,7 @@ function resolveTpl(raw) {
   out.soundVolume = num('soundVolume', 0, 1)
   out.voice = bool('voice')
   out.voiceLang = oneOf('voiceLang', TPL_VOICE_LANGS)
-  out.voicePack = /^[a-z]$/.test(source.voicePack) ? source.voicePack : TPL_DEFAULTS.voicePack
+  out.voicePack = /^[a-z]$/.test(get('voicePack')) ? get('voicePack') : TPL_DEFAULTS.voicePack
   out.voiceFx = oneOf('voiceFx', TPL_VOICE_FX)
   out.voiceRate = num('voiceRate', 0.5, 2)
   out.voicePitch = num('voicePitch', 0, 2)
@@ -398,8 +408,8 @@ function resolveTpl(raw) {
   // than passed on, because the runtime would fetch a name the route refuses.
   out.bgmEnabled = bool('bgmEnabled')
   out.bgmLoop = bool('bgmLoop')
-  out.bgmFile = MUSIC_FILE_RE.test(source.bgmFile) ? source.bgmFile : TPL_DEFAULTS.bgmFile
-  out.bgmFile2 = MUSIC_FILE_RE.test(source.bgmFile2) ? source.bgmFile2 : TPL_DEFAULTS.bgmFile2
+  out.bgmFile = MUSIC_FILE_RE.test(get('bgmFile')) ? get('bgmFile') : TPL_DEFAULTS.bgmFile
+  out.bgmFile2 = MUSIC_FILE_RE.test(get('bgmFile2')) ? get('bgmFile2') : TPL_DEFAULTS.bgmFile2
   out.bgmVolume = num('bgmVolume', 0, 1)
   out.bgmBpm = num('bgmBpm', 40, 220)
   out.bgmBeats1 = num('bgmBeats1', 4, 128)

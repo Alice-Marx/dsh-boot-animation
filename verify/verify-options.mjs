@@ -688,6 +688,39 @@ check('...and no entry for a slot that build never declares',
 const sourceName = /const BUNDLE_NAME = '([^']+)'/.exec(CLIENT)?.[1]
 equal('BUNDLE_NAME in the source is this package\'s name', sourceName, pkgName)
 
+// The editor entry. A `target="_blank"` link is swallowed by the desktop shell
+// (a new-window request for the app's own scheme goes nowhere), which is how the
+// button came to look dead: "点了没反应". The control therefore opens the editor in
+// a same-origin iframe overlay the Host already serves.
+console.log('\n[10] the template editor opens in the card, not in a new window')
+const editorCard = mountCard({ ...settings, value: { ...settings.value, form: 'template', template: 'archive-warm' } }, {
+  fetch: () => json({ templates: [{ id: 'archive-warm', name: '档案暖白' }] }),
+})
+await settle()
+const editorExpand = editorCard.refresh().find((node) => node.type === 'button' && node.props.className === 'dshba-head')
+editorCard.click(editorExpand)
+editorCard.refresh()
+const findIframe = () => editorCard.refresh().find((node) => node.type === 'iframe')
+check('no editor iframe until the button is pressed', findIframe() === undefined)
+const editorButton = editorCard.refresh().find((node) => node.type === 'button'
+  && editorCard.textOf(node) === '打开模板编辑器')
+check('the card offers a button, not only a link', editorButton !== undefined)
+editorButton?.props.onClick()
+const frame = findIframe()
+equal('the editor opens as a same-origin iframe overlay',
+  frame?.props.src, '/plugins/dsh-boot-animation/tpl/editor')
+equal('...inside a dialog layer the card owns',
+  editorCard.refresh().find((node) => node.props.className === 'dshba-editor')?.props.role, 'dialog')
+const editorLink = editorCard.refresh().find((node) => node.type === 'a'
+  && String(node.props.href).endsWith('/tpl/editor'))
+equal('a real tab is still offered as the secondary control',
+  [editorLink?.props.target, editorLink?.props.rel], ['_blank', 'noopener noreferrer'])
+const closeButton = editorCard.refresh().find((node) => node.type === 'button'
+  && editorCard.textOf(node) === '关闭')
+check('the overlay can be closed', closeButton !== undefined)
+closeButton?.props.onClick()
+check('...and closing drops it', findIframe() === undefined)
+
 // A bundle that is not the current build of the source is the one artifact
 // failure this package cannot detect at runtime: the shell serves lib/, the
 // repository reads src/, and a stale lib/ looks like "my change did nothing".

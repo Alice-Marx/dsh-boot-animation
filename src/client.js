@@ -294,6 +294,15 @@ const CSS = [
   '.dshba-msg{margin-top:8px;font-size:11.5px;line-height:1.5;',
   'color:var(--dsw-alias-label-tertiary,rgba(127,127,127,.8))}',
   '.dshba-msg.err{color:var(--dsw-alias-label-error,#d24a43)}',
+  // The template editor overlay: a full-screen layer inside the settings page.
+  // `position:fixed` rather than a dialog component, so it escapes the card's
+  // own scroll container and needs nothing from the shell that owns this page.
+  '.dshba-editor{position:fixed;inset:0;z-index:2147483000;display:flex;flex-direction:column;',
+  'background:var(--dsw-alias-bg-layer-1,#101418);color:var(--dsw-alias-label-primary,#eee)}',
+  '.dshba-editorbar{display:flex;align-items:center;gap:12px;padding:8px 14px;flex:none;',
+  'border-bottom:1px solid var(--dsw-alias-border-l2,rgba(127,127,127,.34))}',
+  '.dshba-editortitle{flex:1;min-width:0;font-size:13px;font-weight:600}',
+  '.dshba-editorframe{flex:1;min-height:0;width:100%;border:0;background:#0b0e12}',
   // The template form's controls: a native select and a native range, dressed
   // with the same tokens as the option buttons so the two forms read as one
   // card. No backticks anywhere in this sheet — see the note above.
@@ -531,6 +540,9 @@ function BootAnimationCard(props) {
   // absence is a sentence rather than a dead dropdown.
   const [templates, setTemplates] = React.useState(null)
   const [templatesFailed, setTemplatesFailed] = React.useState(false)
+  // The editor overlay. A boolean, and it is the whole reason the editor is
+  // reachable on the desktop build at all: see the section that renders it.
+  const [editorOpen, setEditorOpen] = React.useState(false)
   React.useEffect(() => {
     if (!open || screenForm !== 'template' || templates !== null) return undefined
     let live = true
@@ -1219,22 +1231,34 @@ function BootAnimationCard(props) {
           onClick: previewTemplate,
         }, previewing === 'template' ? '预览中…' : '预览这一模板')))
 
-      // The editor entry. A new tab rather than a dialog: the editor is a full
-      // page with its own preview stage, and squeezing it into the settings
-      // card would make both harder to use. It saves into the user template
-      // directory, so a template edited here joins the dropdown above.
+      // The editor entry. A FULL-SCREEN OVERLAY holding the editor page, not a
+      // `target="_blank"` link: in the desktop shell a new-window request for the
+      // app's own scheme is swallowed, so the button looked dead ("点了没反应").
+      // An iframe is a same-origin GET the Host already serves, and it works the
+      // same in the browser build, in the desktop shell and inside a narrow
+      // settings column.
+      //
+      // The link stays, as a secondary control: in a browser a real tab is nicer
+      // than an overlay, and it costs one line.
       sections.push(React.createElement('div', { className: 'dshba-sec', key: 'tpl-editor-link' },
         React.createElement('div', { className: 'dshba-h' }, '自己改模板'),
         React.createElement('div', { className: 'dshba-p' },
           '可视化编辑器：改文字、图层、关键帧、配色，存进用户模板目录。'
           + '改动立即能在这张卡片的上拉框里看到，也能直接预览。'),
-        React.createElement('a', {
-          className: 'dshba-opt',
-          href: TPL_ROUTE + '/editor',
-          target: '_blank',
-          rel: 'noopener noreferrer',
-          style: { display: 'inline-block', textDecoration: 'none' },
-        }, '打开模板编辑器')))
+        React.createElement('div', { className: 'dshba-inline' },
+          React.createElement('button', {
+            type: 'button',
+            className: 'dshba-opt',
+            onClick: () => setEditorOpen(true),
+          }, '打开模板编辑器'),
+          React.createElement('a', {
+            className: 'dshba-opt',
+            href: TPL_ROUTE + '/editor',
+            target: '_blank',
+            rel: 'noopener noreferrer',
+            title: '在新标签页打开（浏览器里更好用；桌面端请用左边的按钮）',
+            style: { display: 'inline-block', textDecoration: 'none' },
+          }, '新标签页'))))
 
       // The store. The index is fetched on the Host side (so the browser needs
       // no CORS the store does not offer), and an install writes the template
@@ -1804,9 +1828,32 @@ function BootAnimationCard(props) {
         '当前页面不允许写入设置文档。'))
     }
 
+    // The editor overlay's own close path. Dropping the cached catalogue is what
+    // makes a template saved in the editor appear in the dropdown behind it
+    // without a page reload: the fetch effect keys on `templates === null`.
+    const closeEditor = () => {
+      setEditorOpen(false)
+      setTemplates(null)
+    }
+
     return React.createElement('li', { className: 'dshba-card', 'data-open': '1' },
       header,
-      React.createElement('div', { className: 'dshba-body' }, sections))
+      React.createElement('div', { className: 'dshba-body' }, sections),
+      editorOpen
+        ? React.createElement('div', {
+          className: 'dshba-editor',
+          role: 'dialog',
+          'aria-label': '模板编辑器',
+        },
+        React.createElement('div', { className: 'dshba-editorbar' },
+          React.createElement('span', { className: 'dshba-editortitle' }, '模板编辑器 · 存到用户模板目录后关闭即刷新'),
+          React.createElement('button', { type: 'button', className: 'dshba-opt', onClick: closeEditor }, '关闭')),
+        React.createElement('iframe', {
+          className: 'dshba-editorframe',
+          src: TPL_ROUTE + '/editor',
+          title: '模板编辑器',
+        }))
+        : null)
   } catch (error) {
     // A card that cannot draw itself must still leave the settings page usable.
     return React.createElement('li', { className: 'dshba-card', 'data-open': '1' },

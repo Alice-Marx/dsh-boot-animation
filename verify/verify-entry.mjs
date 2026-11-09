@@ -472,6 +472,20 @@ check('runtime config global present', tplCfg !== undefined)
 equal('runtime config carries the template-form settings',
   [tplCfg.mode, tplCfg.theme, tplCfg.speed, tplCfg.identity, tplCfg.glass],
   ['session', 'light', 1, 'JOYCE MOORE', false])
+
+// A value the user STORED has to reach the runtime, not just the schema default.
+// `tpl` is a nested object whose leaves are volatile, so the applied config is a
+// plain object full of live references: reading `source[key]` directly made every
+// type guard fail and every field fall back to `TPL_DEFAULTS`, while the settings
+// card happily showed what was stored. Reported as "我改了身份名称，开屏里的内容还是没变".
+const edited = render(mount(makeCtx(), Config({
+  form: 'template',
+  tpl: { identity: 'MASTER', identityId: '0018', speed: 1.5, glass: true, bgmEnabled: true },
+})))
+const editedCfg = globalOf(edited, '__DSH_BOOT_ANIM_TPL_CFG__')
+equal('a stored template-form value reaches the runtime',
+  [editedCfg.identity, editedCfg.identityId, editedCfg.speed, editedCfg.glass, editedCfg.bgmEnabled],
+  ['MASTER', '0018', 1.5, true, true])
 check('runtime config never carries the clip screen\'s fields',
   !('fadeMs' in tplCfg) && !('enterMode' in tplCfg) && !('manifest' in tplCfg))
 check('runtime config says enabled — the Host already decided that',
