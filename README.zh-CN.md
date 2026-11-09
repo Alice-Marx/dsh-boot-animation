@@ -9,14 +9,14 @@
 这是一个社区插件，与 DeepSeek 不相关，也未获得 DeepSeek 的认可。
 
 - **软件包：** [`@ljwei-stak/dsh-boot-animation`](https://www.npmjs.com/package/@ljwei-stak/dsh-boot-animation)
-- **版本：** [0.6.4](https://github.com/Alice-Marx/dsh-boot-animation/releases/tag/v0.6.4)
+- **版本：** [0.6.5](https://github.com/Alice-Marx/dsh-boot-animation/releases/tag/v0.6.5)
 - **仓库：** [Alice-Marx/dsh-boot-animation](https://github.com/Alice-Marx/dsh-boot-animation)
 - **主题：** `dsh-plugin`
 - **目录分类：** UI & Experience（用户界面与体验），遵循 [DSH Plugin Hub 提交分类](https://dsh-plugin.org/submit)。选择类别并不代表已获收录。
 
 ## 截图
 
-本地 Chromium 演示宿主渲染了实际的 0.6.4 启动页和设置卡片源码，并附带示例 profile 数据。这些不是已登录的 DSH live profile 截图，也不代表已完成跨平台验证。
+本地 Chromium 演示宿主渲染了实际的 0.6.5 启动页和设置卡片源码，并附带示例 profile 数据。这些不是已登录的 DSH live profile 截图，也不代表已完成跨平台验证。
 
 ![启动页预览](assets/screenshots/startup-preview.png)
 
@@ -31,21 +31,21 @@
 ### Web 版
 
 ```bash
-dsh plugin --profile web add @ljwei-stak/dsh-boot-animation@0.6.4 --save-exact
+dsh plugin --profile web add @ljwei-stak/dsh-boot-animation@0.6.5 --save-exact
 ```
 
 必须已满足宿主与 Node 的要求。
 
 ### 桌面版
 
-打开 **设置 -> 插件 -> 添加插件**，粘贴 `@ljwei-stak/dsh-boot-animation@0.6.4`，然后按提示从托盘彻底退出并重新打开。
+打开 **设置 -> 插件 -> 添加插件**，粘贴 `@ljwei-stak/dsh-boot-animation@0.6.5`，然后按提示从托盘彻底退出并重新打开。
 
 对于 Desktop 升级，如果实时安装 API 报告该软件包已安装，请先从托盘彻底退出，然后使用官方 Desktop 捆绑包装器——而不是较旧的全局 `dsh` 可执行文件。
 
 Windows 默认位置的可复制离线命令：
 
 ```powershell
-& "$env:LOCALAPPDATA\Programs\DeepSeek Harness\resources\runtime\cli\bin\dsh.cmd" plugin --profile desktop add '@ljwei-stak/dsh-boot-animation@0.6.4' --save-exact
+& "$env:LOCALAPPDATA\Programs\DeepSeek Harness\resources\runtime\cli\bin\dsh.cmd" plugin --profile desktop add '@ljwei-stak/dsh-boot-animation@0.6.5' --save-exact
 ```
 
 如果 DeepSeek Harness 安装在其他位置，请相应调整包装器路径。如果你使用自定义 `DSH_HOME`，在运行此命令时请保留该设置。不要在 Linux 或 macOS 上使用这个确切的 Windows 路径。
@@ -165,8 +165,10 @@ JSON 加素材。内置三种引擎，任选其一都能跑：**分幕 steps**�
 - 原始代码 / 上游：[`lxj5820/dsh-boot-animation`](https://github.com/lxj5820/dsh-boot-animation)
 - 官方 DSH 宿主：[`deepseek-ai/deepseek-harness`](https://github.com/deepseek-ai/deepseek-harness)
 - 当前维护的分发：[`Alice-Marx/dsh-boot-animation`](https://github.com/Alice-Marx/dsh-boot-animation)
+- 模板运行时、模板库与可视化编辑器的来源：[`LeeRolling/dsh-boot-suite`](https://github.com/LeeRolling/dsh-boot-suite)
+- 液态玻璃、配音素材与交互语法的来源：[`6shenhonghong9/dsh-startup-screen`](https://github.com/6shenhonghong9/dsh-startup-screen)
 
-不暗示上游或宿主项目的任何认可。
+后两个是本包「模板动画」形式的移植来源；移植内容与改名映射见 [CREDITS.md](CREDITS.md) 与 `tools/vendor-splash-runtime.mjs`。不暗示上游、宿主或来源项目的任何认可。
 
 ## 开发者说明
 
@@ -180,7 +182,7 @@ node verify/verify-options.mjs
 node verify/verify-custom-clips.mjs
 ```
 
-0.6.4 版本通过了 567 项检查；但这并不意味着每个 Desktop 版本或操作系统都经过了完整的端到端测试。
+0.6.5 版本通过了 567 项检查；但这并不意味着每个 Desktop 版本或操作系统都经过了完整的端到端测试。
 
 有关开发和设置详情，请参阅 [AGENTS.md](AGENTS.md)、[MANUAL.md](MANUAL.md) 和 [INSTALL.md](INSTALL.md)。归档的历史记录保存在 [docs/DEVELOPMENT_NOTES.md](docs/DEVELOPMENT_NOTES.md)，不具有权威性。
 

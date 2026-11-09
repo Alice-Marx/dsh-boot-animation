@@ -9,14 +9,14 @@ Replaces the DSH startup page with a chosen or random local video, or with a dat
 This is a community plugin, not affiliated with or endorsed by DeepSeek.
 
 - **Package:** [`@ljwei-stak/dsh-boot-animation`](https://www.npmjs.com/package/@ljwei-stak/dsh-boot-animation)
-- **Release:** [0.6.4](https://github.com/Alice-Marx/dsh-boot-animation/releases/tag/v0.6.4)
+- **Release:** [0.6.5](https://github.com/Alice-Marx/dsh-boot-animation/releases/tag/v0.6.5)
 - **Repository:** [Alice-Marx/dsh-boot-animation](https://github.com/Alice-Marx/dsh-boot-animation)
 - **Topic:** `dsh-plugin`
 - **Directory category:** UI & Experience (用户界面与体验), following the [DSH Plugin Hub submission categories](https://dsh-plugin.org/submit). A category choice is not a claim of listing acceptance.
 
 ## Screenshots
 
-Local Chromium demo host rendering the actual 0.6.4 boot and card source with sample profile data. These are not screenshots of a signed-in live DSH profile and are not a cross-platform certification.
+Local Chromium demo host rendering the actual 0.6.5 boot and card source with sample profile data. These are not screenshots of a signed-in live DSH profile and are not a cross-platform certification.
 
 ![Startup preview](assets/screenshots/startup-preview.png)
 
@@ -32,21 +32,21 @@ authorisation sequence, waiting for the operator's confirmation.
 ### Web
 
 ```bash
-dsh plugin --profile web add @ljwei-stak/dsh-boot-animation@0.6.4 --save-exact
+dsh plugin --profile web add @ljwei-stak/dsh-boot-animation@0.6.5 --save-exact
 ```
 
 Host and Node requirements must already be met.
 
 ### Desktop
 
-Open **Settings -> Plugins -> Add plugin**, paste `@ljwei-stak/dsh-boot-animation@0.6.4`, then quit and reopen from the tray as prompted.
+Open **Settings -> Plugins -> Add plugin**, paste `@ljwei-stak/dsh-boot-animation@0.6.5`, then quit and reopen from the tray as prompted.
 
 For Desktop upgrades where the live install API reports the package as already installed, fully quit from the tray first and use the official Desktop bundled wrapper — not an older global `dsh` binary.
 
 Windows default-location copyable offline command:
 
 ```powershell
-& "$env:LOCALAPPDATA\Programs\DeepSeek Harness\resources\runtime\cli\bin\dsh.cmd" plugin --profile desktop add '@ljwei-stak/dsh-boot-animation@0.6.4' --save-exact
+& "$env:LOCALAPPDATA\Programs\DeepSeek Harness\resources\runtime\cli\bin\dsh.cmd" plugin --profile desktop add '@ljwei-stak/dsh-boot-animation@0.6.5' --save-exact
 ```
 
 Adjust the wrapper path if DeepSeek Harness is installed elsewhere. If you use a custom `DSH_HOME`, retain it when running this command. Do not use this exact Windows path on Linux or macOS.
@@ -180,8 +180,10 @@ Code is under [MIT](LICENSE). The `LICENSE` declares the bundled MP4 work under 
 - Original code / upstream: [`lxj5820/dsh-boot-animation`](https://github.com/lxj5820/dsh-boot-animation)
 - Official DSH host: [`deepseek-ai/deepseek-harness`](https://github.com/deepseek-ai/deepseek-harness)
 - Current maintained distribution: [`Alice-Marx/dsh-boot-animation`](https://github.com/Alice-Marx/dsh-boot-animation)
+- Template runtime, template library and visual editor ported from: [`LeeRolling/dsh-boot-suite`](https://github.com/LeeRolling/dsh-boot-suite)
+- Glass treatment, voice assets and the interaction grammar also ported from: [`6shenhonghong9/dsh-startup-screen`](https://github.com/6shenhonghong9/dsh-startup-screen)
 
-No endorsement by the upstream or host projects is implied.
+The last two are the source trees this package's template form was ported from; the port and its rename map are documented in [CREDITS.md](CREDITS.md) and in `tools/vendor-splash-runtime.mjs`. No endorsement by the upstream, host or source projects is implied.
 
 ## Developer notes
 
@@ -195,7 +197,7 @@ node verify/verify-options.mjs
 node verify/verify-custom-clips.mjs
 ```
 
-The 0.6.4 release passed 567 checks; this does not imply every Desktop release or operating system was fully end-to-end tested.
+The 0.6.5 release passed 567 checks; this does not imply every Desktop release or operating system was fully end-to-end tested.
 
 See [AGENTS.md](AGENTS.md), [MANUAL.md](MANUAL.md), and [INSTALL.md](INSTALL.md) for development and setup detail. Archived historical notes are kept at [docs/DEVELOPMENT_NOTES.md](docs/DEVELOPMENT_NOTES.md) and are non-authoritative.
 
