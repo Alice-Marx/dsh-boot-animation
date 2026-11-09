@@ -24,6 +24,14 @@ page does not replace the Desktop process's cached startup injections.
 
 ## 它长什么样
 
+开屏有两种**形式**，在设置里切换（见下面的「开屏形式」）：
+
+1. **影片**——深海底背景 + 一条短片铺满窗口（从素材池里随机取）
+2. **模板动画**——按模板数据演出：分幕（中文主字 + 英文等宽副标题 + 配音）、
+   时间线（图层关键帧）、或整页 iframe（模板自己是一个网页）
+
+### 影片形式
+
 1. 深海底背景 + 一条短片铺满窗口（从素材池里随机取一条）
 2. 底部一条细进度条，跟真实启动进度走
 3. **片尾开始溶解进界面**——淡入正好在片子放完那一刻结束
@@ -35,6 +43,20 @@ page does not replace the Desktop process's cached startup injections.
 
 不想让它出声、不想看文字、想一下点进去，都在设置里（见下面的三个开关）。
 
+### 模板动画形式
+
+模板是**纯数据**（一个 `template.json` 加若干素材文件），不是代码——插件自带一个
+运行时来解释它，所以别处做的开屏动画可以整套搬过来跑。三种引擎：
+
+| 引擎 | 长什么样 | 内置样例 |
+|---|---|---|
+| **分幕 steps** | 一幕一幕往下走：中文大字 + 英文副标题 + 底部日志，可以等你按按钮 | 档案暖白、深海声呐、终端荧光 |
+| **时间线 layers** | 每个图层按关键帧时间线动：文字/线条/面板/图片/视频/字符球/地球/身份卡 | 鲸鱼娘扫描睁眼、550C 复刻、时间线演示 |
+| **整页 iframe** | 模板自己就是一个网页，自己演自己；插件只负责挂载和收尾 | 全景大肥鱼（含彩蛋） |
+
+两种形式都遵循同一条底线：**这一页绝不会黑屏**。模板读不出来、素材缺失、字段坏了，
+一律回落到影片形式（并在日志里说明原因），不会把界面锁死。
+
 ## 设置在哪
 
 **设置 → 插件 →「插件配置」**，找到「启动动画」这一行，**点一下展开**：
@@ -42,6 +64,7 @@ page does not replace the Desktop process's cached startup injections.
 | 控件 | 作用 |
 |---|---|
 | **开启启动动画** | 总开关。关掉＝完全不出现动画，回到 DSH 原来的启动页 |
+| **开屏形式** | **影片**（默认，上面的短片）／**模板动画**（下面的模板引擎） |
 | **播放影片声音** | 默认开。关掉＝**彻底静音**：不再尝试开声音，右下角那个声音按钮也不出现 |
 | **点鼠标直接进入** | 默认关。打开后**按一下画面就直接进界面**，不再用第一下开声音 |
 | **显示底部提示文字** | 默认开。关掉只隐藏画面底部那行「点击进入」之类的提示，标题和进度条保留 |
@@ -50,6 +73,33 @@ page does not replace the Desktop process's cached startup injections.
 | **素材池** | 勾选哪些片子参与随机轮播。取消勾选的会留在文件夹里，只是不再被抽中 |
 
 **改完刷新页面生效**，不用重启 DSH。
+
+选**模板动画**后，同一张卡片下半部分换成模板的控件：
+
+| 控件 | 作用 |
+|---|---|
+| **第一幕模板** | 下拉选一个模板；下面是所有可用模板（内置 + 你自己的） |
+| **第二幕模板（可选）** | 第一幕演完接着演第二幕；选「不播第二幕」就是单幕 |
+| **预览这一模板** | 立刻满屏跑一遍选中的模板——用的是**当前设置**，不等保存 |
+| **播放速度** | 0.5× ~ 2×，默认 1× |
+| **版式** | 亮色／暗色；模板自带深色底时会自动切暗色，除非你指定过 |
+| **播放时机** | 每次打开／每个浏览器会话一次／每天一次 |
+| **等待用户确认** | 序列里标了需要确认的步骤等你按按钮；关掉则自动往下走 |
+| **允许跳过** | 播放期间可以按 Esc 或点跳过按钮提前进入 |
+| **界面音效** | 选项音、确认音等界面音效 |
+| **女声播报** | 序列每一步念出台词：有配音素材用素材，没有就用系统语音 |
+| **播报语言** | 英语／中文／中英 |
+| **声音效果** | 给配音加一层：原声／AI 机械／机器人／无线电／老电视／低沉 |
+| **身份名称 / 代号** | 序列结尾念出的名字和编号 |
+| **强调色** | 主色 + 两个故障色；模板自己指定过的颜色以模板为准 |
+| **入场 / 两幕之间 / 退场 转场** | 每段的过场怎么走：叠化／闪白／故障／扫描线／滑移／圆形拉开／黑场／硬切 |
+| **转场时长** | 0.2 ~ 2 秒 |
+| **液态玻璃** | 底板和黑幕变半透明磨砂，能透出背后的界面（经典档案版的默认观感） |
+| **玻璃参数** | 不透明度、磨砂半径、背景模糊（背景模糊直接糊在应用本体上） |
+| **背景音乐** | 用你自己的音乐给模板伴奏。文件只存在本机 profile 里，不上传任何服务器 |
+| **主音乐 / 第二段** | 导入的音频里选哪首播哪段；第二段可选，选了两段之间交叉淡入 |
+| **音量与节奏** | 音量、拍速、两段的拍数与起点、交叉时长 |
+| **整体循环 / 第二段也循环 / 配音时压低音乐** | 循环怎么算；配音时自动把音乐压低（闪避） |
 
 > **适配 DSH 0.2.0-rc.2。** DSH 换了「插件怎么提供设置」的接法：以前是插件向 Host
 > **注册**一个设置命名空间，现在是插件自己**声明**一份 `Config` 描述，命名空间就是它在
@@ -94,6 +144,48 @@ Imported files live in the current DSH profile, outside the installed plugin, so
 package upgrades retain them. Profiles have separate pools. No original source
 file is moved or overwritten. Preview reflects the current controls immediately;
 Desktop's next startup uses them after quitting from the system tray and relaunching.
+
+## Import your own template
+
+Templates are plain data — a directory holding `template.json` plus its assets:
+
+```
+<你的模板目录>/
+  template.json          # 描述演什么、怎么演（分幕 / 时间线 / iframe）
+  assets/                # 模板引用的音频、图片、视频
+  index.html             # 仅 iframe 模板需要：模板自己的网页
+```
+
+To install one, copy the directory into the profile's data folder:
+
+```
+<DSH 配置目录>/data/dsh-boot-animation/templates/<模板 id>/
+```
+
+The default DSH config directory is `~/.dsh` (Windows:
+`C:\Users\<你>\.dsh`). The template id is the directory name: lower-case letters,
+digits and hyphens, up to 40 characters. A user template with the same id as a
+built-in one **overrides** it — that is how a built-in template is customised
+without touching the installed package.
+
+The dropdown in the card lists both the built-in templates and yours, and the
+card shows which is which. A template that fails validation is skipped rather
+than served: the boot then falls back to the clip screen and says so in the log.
+
+Templates written for **dsh-boot-suite** run here unchanged — the format and the
+`template.json` schema are that project's, and this package's runtime is an
+adapted copy of its engine (see [CREDITS.md](CREDITS.md) for the full
+attribution). Anything that project's template store offers can be dropped in.
+
+还有两条不用碰文件夹的路：
+
+- **模板编辑器**：设置卡片里点「打开模板编辑器」，会开一个新页面，可视化地改
+  文字、图层、关键帧和配色，改完存进用户模板目录（旧版本自动备份到
+  `backups/`，保留最近 30 份）。编辑器里也能直接预览和试听。
+- **模板商店**：同一张卡片里的「模板商店」分段，列出公开模板，点「安装」就会
+  把模板和它自带的素材写到本机 profile——不上传任何东西，也不经过任何账号。
+  装完就出现在上面的第一幕下拉框里。商店连不上时会显示上次读到的列表，并说明
+  原因。
 
 ## Legacy folder-based media
 

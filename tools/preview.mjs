@@ -13,15 +13,41 @@
 // against a real clip.
 
 import { createServer } from 'node:http'
-import { readFile, readdir, stat } from 'node:fs/promises'
+import { readFile, readdir, stat, mkdir, writeFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { basename, extname, join, resolve, sep } from 'node:path'
+import { createTemplateStore, TEMPLATE_FILE_TYPES } from '../src/template-store.js'
+import { validateTemplate } from '../src/template-validate.js'
+import { IDCARD_HTML } from '../src/idcard-html.js'
 
 const PACKAGE = fileURLToPath(new URL('..', import.meta.url))
 const VIDEO_DIR = join(PACKAGE, 'assets', 'videos')
 const VIDEO_EXT = new Set(['.mp4', '.webm', '.m4v', '.mov'])
 const PAGE_PORT = 8877
 const CLIP_PORT = 8878
+/** The preview's stand-in for a profile: where the editor's saves land. */
+const PREVIEW_HOME = join(PACKAGE, '.preview-home')
+/** The editor's in-memory drafts, exactly as the Host holds them. */
+const editorDrafts = new Map()
+
+/** Read one request body as UTF-8 text, bounded. */
+function readBodyText(req, limit = 64 * 1024) {
+  return new Promise((resolve) => {
+    let size = 0
+    const chunks = []
+    req.on('data', (chunk) => {
+      size += chunk.length
+      if (size > limit) {
+        req.destroy()
+        resolve('')
+        return
+      }
+      chunks.push(chunk)
+    })
+    req.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')))
+    req.on('error', () => resolve(''))
+  })
+}
 
 const MIME = {
   '.mp4': 'video/mp4',
@@ -46,6 +72,143 @@ async function listClips() {
 }
 
 /** The clip pool server: same layout the Host half exposes under its route. */
+/**
+ * The template form's preview page.
+ *
+ * Renders the same rows the Host injects for `form: 'template'`, against this
+ * preview's own /tpl routes on the clip server. The template data is read
+ * through the real store, so what plays here is what a real boot plays —
+ * including the validation, because a template the store refuses is a template
+ * the Host would not inject either.
+ *
+ * The settings come from the query string, the same contract the video form
+ * has: `?template=<id>` picks the act, `?template2=<id>` the second one, and
+ * `?speed=`, `?theme=`, `?glass=1` and friends override the runtime config. A
+ * missing template is reported on the page rather than falling back silently,
+ * because a preview that quietly plays something else answers the wrong
+ * question.
+ * @param query - the parsed query string.
+ * @returns the page HTML.
+ */
+async function templatePage(query) {
+  const store = createTemplateStore({})
+  const first = store.readTemplate(query.get('template') || 'archive-warm')
+  const second = query.get('template2') ? store.readTemplate(query.get('template2')) : null
+  const base = `http://127.0.0.1:${String(CLIP_PORT)}/plugins/dsh-boot-animation/tpl`
+  const safe = (value) => JSON.stringify(value).replace(/</g, '\\u003c').replace(/\u2028|\u2029/g, '')
+
+  if (first === null) {
+    const known = store.listTemplates().map((entry) => entry.id).join(', ')
+    return `<!doctype html><html lang="zh"><head><meta charset="utf-8"><title>模板预览</title>
+<style>body{margin:0;height:100vh;display:grid;place-items:center;background:#10141c;color:#dfe7f3;font:14px/1.7 system-ui}</style>
+</head><body><div>找不到模板「${String(query.get('template') || 'archive-warm')}」。<br>
+可用的内置模板：${known || '（无）'}</div></body></html>`
+  }
+
+  // The runtime config, with the same fields the Host sends. `voicePack` is
+  // load-bearing rather than cosmetic: the runtime has two fallbacks for it
+  // ('f' in one place, 'a' in another), and the 'a' pack does not ship — a
+  // preview that omits it asks for audio that 404s.
+  const cfg = {
+    enabled: true,
+    mode: 'always',
+    theme: query.get('theme') || 'light',
+    speed: Number(query.get('speed')) || 1,
+    requireInteraction: query.get('requireInteraction') !== '0',
+    allowSkip: query.get('allowSkip') !== '0',
+    sound: query.get('sound') !== '0',
+    soundVolume: 0.5,
+    voice: query.get('voice') !== '0',
+    voiceLang: 'en',
+    voicePack: 'f',
+    voiceFx: 'robot',
+    voiceRate: 0.88,
+    voicePitch: 0.85,
+    voiceVolume: 0.9,
+    voiceCue: true,
+    voiceLead: 240,
+    identity: query.get('identity') || 'JOYCE MOORE',
+    identityId: '0087',
+    accessLevel: '3',
+    accent: '#ff7500',
+    glitchA: '#ff3b30',
+    glitchB: '#2971b8',
+    transitionIn: 'dissolve',
+    transitionJoin: 'dissolve',
+    transitionOut: 'dissolve',
+    transitionMs: 600,
+    transitionDir: 'left',
+    glass: query.get('glass') === '1',
+    glassOpacity: 0.75,
+    glassBlur: 22,
+    glassSaturate: 160,
+    glassBackdropBlur: 28,
+  }
+  const { __root, __source, ...published } = first
+  const rows = [
+    `<script>globalThis.__DSH_BOOT_ANIM_TPL_BASE__=${safe(base)}</script>`,
+    `<script>globalThis.__DSH_BOOT_ANIM_TPL_CFG__=${safe(cfg)}</script>`,
+    `<script>globalThis.__DSH_BOOT_ANIM_TPL_1__=${safe(published)}</script>`,
+  ]
+  if (second !== null) {
+    const { __root: root2, __source: source2, ...published2 } = second
+    rows.push(`<script>globalThis.__DSH_BOOT_ANIM_TPL_2__=${safe(published2)}</script>`)
+  }
+  return `<!doctype html>
+<html lang="zh"><head><meta charset="utf-8"><title>模板预览 · ${String(first.name || first.id)}</title>
+<link rel="stylesheet" href="${base}/splash.css">
+<style>
+  html.dsu-lock,html.dsu-lock body{overflow:hidden!important}
+  html.dsu-lock body{background-color:#000!important}
+  :root{--dsh-boot-bg:#000}
+  #dsh-boot-anim-tpl.dsu-boot{position:fixed;inset:0;z-index:2147483000;background:#000}
+  /* A stand-in for the application the overlay dissolves into: without
+     something behind it the hand-off has nothing to reveal. */
+  #mockapp{position:fixed;inset:0;z-index:1;display:grid;place-items:center;
+    background:linear-gradient(160deg,#f7f7f5,#efeff0);color:#2b2b2b;
+    font:600 22px/1.6 system-ui;text-align:center}
+  .devbar{position:fixed;left:12px;top:12px;z-index:2147483600;display:flex;gap:6px;
+    font:12px system-ui;isolation:isolate}
+  .devbar button,.devbar a{cursor:pointer;padding:5px 9px;border-radius:6px;text-decoration:none;
+    border:1px solid rgba(120,160,200,.5);background:rgba(10,20,32,.72);color:#cfe4f6}
+</style>
+${rows.join('\n')}
+</head>
+<body>
+<div class="devbar">
+  <a href="/?form=template&template=archive-warm">档案暖白</a>
+  <a href="/?form=template&template=deep-sonar&theme=dark">深海声呐</a>
+  <a href="/?form=template&template=whale-girl-scan">鲸鱼娘</a>
+  <a href="/?form=template&template=550c-homage&theme=dark">550C</a>
+  <a href="/?form=template&template=division-bigfish-codex">大肥鱼 iframe</a>
+  <button onclick="location.reload()">重播</button>
+</div>
+<div id="mockapp"><div>应用已就绪<br><span style="font-size:13px;font-weight:400">模板演完就应该看到这一屏</span></div></div>
+<div id="dsh-boot-anim-tpl" class="dsu-root dsu-boot"></div>
+<script>
+(function(){try{
+var c=globalThis.__DSH_BOOT_ANIM_TPL_CFG__||{};
+var off=!c.enabled;
+if(!off&&c.mode==='session'&&sessionStorage.getItem('dsh-boot-animation:tpl-shown')==='1')off=true;
+if(!off&&c.mode==='daily'&&localStorage.getItem('dsh-boot-animation:tpl-day')===new Date().toISOString().slice(0,10))off=true;
+if(off){globalThis.__DSH_BOOT_ANIM_TPL_SKIP__=true;var r0=document.getElementById('dsh-boot-anim-tpl');if(r0&&r0.parentNode)r0.parentNode.removeChild(r0);}
+else{
+document.documentElement.classList.add('dsu-lock');
+document.documentElement.style.overflow='hidden';
+if(document.body)document.body.style.overflow='hidden';
+setTimeout(function(){try{
+if(globalThis.__DSH_BOOT_ANIM_TPL_RUNNING__===true)return;
+var r=document.getElementById('dsh-boot-anim-tpl');
+if(r&&r.parentNode)r.parentNode.removeChild(r);
+document.documentElement.classList.remove('dsu-lock');
+if(document.body)document.body.style.overflow='';
+}catch(e){}},9000);}
+}catch(e){}})()
+</script>
+<script src="${base}/splash.js"></script>
+</body></html>`
+}
+
 const clipServer = createServer((req, res) => {
   const url = decodeURIComponent((req.url ?? '/').split('?')[0])
   void (async () => {
@@ -83,7 +246,309 @@ const clipServer = createServer((req, res) => {
       }
       return
     }
-    res.writeHead(404).end()
+    // ── the template form's routes ────────────────────────────────────────────
+    // A faithful local replica of the Host's /tpl group, served through the
+    // real store module so the preview exercises the same validation and
+    // containment a boot does. The one deliberate difference: no trust fence,
+    // because there is no connection service here — this is a stand-alone
+    // preview of files the package already owns.
+    if (url.startsWith('/plugins/dsh-boot-animation/tpl/')) {
+      const rest = url.slice('/plugins/dsh-boot-animation/tpl/'.length)
+      const segments = rest.split('/')
+      // A local stand-in for the profile's data directory, so the editor's
+      // save and asset-upload routes work here too — a preview that could not
+      // save would make the editor untestable without a real DSH.
+      const store = createTemplateStore({
+        inject: (deps, callback) => callback({
+          get: () => ({ dir: PREVIEW_HOME }),
+          effect: (callback) => callback(),
+        }),
+      })
+      const cors = {
+        'access-control-allow-origin': '*',
+        'access-control-allow-methods': 'GET, POST, OPTIONS',
+        'access-control-allow-headers': 'content-type',
+        'cache-control': 'no-store',
+        'x-content-type-options': 'nosniff',
+      }
+      if (req.method === 'OPTIONS') {
+        res.writeHead(204, cors)
+        res.end()
+        return
+      }
+      // Every refusal inside this branch answers with the CORS headers too: the
+      // page is cross-origin from this server, and a 404 without them surfaces
+      // in the browser as a CORS error — which sends a reader looking for a
+      // missing file when the file was simply absent.
+      const refuse = () => {
+        res.writeHead(404, cors)
+        res.end()
+      }
+      if (segments[0] === 'splash.js' || segments[0] === 'splash.css') {
+        const text = await readFile(join(PACKAGE, 'assets', 'splash', segments[0]), 'utf8')
+        res.writeHead(200, {
+          'content-type': segments[0].endsWith('.css') ? 'text/css; charset=utf-8' : 'text/javascript; charset=utf-8',
+          ...cors,
+        })
+        res.end(text)
+        return
+      }
+      if (segments[0] === 'templates.json') {
+        res.writeHead(200, { 'content-type': MIME['.json'], ...cors })
+        res.end(JSON.stringify({ templates: store.listTemplates(), voices: store.voicePacks }))
+        return
+      }
+      if (segments[0] === 'template' && segments.length === 2) {
+        const template = store.readTemplate(segments[1].replace(/\.json$/, ''))
+        if (template === null) {
+          res.writeHead(404, { 'content-type': MIME['.json'], ...cors })
+          res.end(JSON.stringify({ ok: false, error: '模板不存在。' }))
+          return
+        }
+        const { __root, __source, ...published } = template
+        res.writeHead(200, { 'content-type': MIME['.json'], ...cors })
+        res.end(JSON.stringify({ ok: true, template: published }))
+        return
+      }
+      if (segments[0] === 'asset') {
+        const file = join(PACKAGE, 'assets', 'splash', 'assets', basename(segments[1] ?? ''))
+        if (!/^[a-z0-9][a-z0-9._-]{0,40}\.mp3$/i.test(basename(segments[1] ?? ''))) {
+          refuse()
+          return
+        }
+        const body = await readFile(file).catch(() => null)
+        if (body === null) {
+          refuse()
+          return
+        }
+        res.writeHead(200, { 'content-type': 'audio/mpeg', ...cors })
+        res.end(body)
+        return
+      }
+      if (segments[0] === 'voice' && segments.length === 3) {
+        const [pack, name] = segments.slice(1)
+        if (!/^[a-z]$/.test(pack ?? '') || !/^line-[1-9]\d?\.mp3$/.test(name ?? '')) {
+          refuse()
+          return
+        }
+        const body = await readFile(join(PACKAGE, 'assets', 'splash', 'voices', pack, name)).catch(() => null)
+        if (body === null) {
+          refuse()
+          return
+        }
+        res.writeHead(200, { 'content-type': 'audio/mpeg', ...cors })
+        res.end(body)
+        return
+      }
+      if (segments[0] === 'template-asset' && segments.length === 3) {
+        const hit = store.resolveAsset(segments[1], basename(segments[2]))
+        if (hit === null) {
+          refuse()
+          return
+        }
+        const body = await readFile(hit.file)
+        res.writeHead(200, { 'content-type': 'application/octet-stream', ...cors })
+        res.end(body)
+        return
+      }
+      if (segments[0] === 'template-file' && segments.length >= 3) {
+        const hit = store.resolveTemplateFile(segments[1], segments.slice(2).join('/'))
+        if (hit === null) {
+          refuse()
+          return
+        }
+        const body = await readFile(hit.file)
+        res.writeHead(200, { 'content-type': 'text/plain; charset=utf-8', ...cors })
+        res.end(body)
+        return
+      }
+      if (segments[0] === 'frame-session' && segments.length === 1) {
+        // Mint a real capability token through the store, exactly as the Host
+        // does, so the iframe path is exercised rather than stubbed.
+        let id = ''
+        for await (const chunk of req) id += chunk
+        let parsed = {}
+        try {
+          parsed = JSON.parse(id || '{}')
+        } catch {
+          res.writeHead(400, { 'content-type': MIME['.json'], ...cors })
+          res.end(JSON.stringify({ ok: false, error: 'invalid json' }))
+          return
+        }
+        const session = store.createFrameSession(String(parsed?.id ?? ''))
+        if (session === null) {
+          res.writeHead(404, { 'content-type': MIME['.json'], ...cors })
+          res.end(JSON.stringify({ ok: false, error: '模板不存在。' }))
+          return
+        }
+        res.writeHead(200, { 'content-type': MIME['.json'], ...cors })
+        res.end(JSON.stringify({ ok: true, ...session }))
+        return
+      }
+      if (segments[0] === 'frame' && segments.length >= 3) {
+        const session = store.frameSession(segments[1])
+        if (session === null) {
+          refuse()
+          return
+        }
+        const hit = store.resolveTemplateFile(session.id, segments.slice(2).join('/'))
+        if (hit === null) {
+          refuse()
+          return
+        }
+        const rel = segments.slice(2).join('/')
+        const body = await readFile(hit.file)
+        const extension = rel.slice(rel.lastIndexOf('.')).toLowerCase()
+        const headers = {
+          'content-type': TEMPLATE_FILE_TYPES[extension] ?? 'application/octet-stream',
+          ...cors,
+        }
+        // The same sandbox headers the Host answers with, so an iframe
+        // template's third-party document is constrained here too.
+        if (session.untrusted && extension === '.html') {
+          headers['content-security-policy'] = "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'"
+        }
+        res.writeHead(200, headers)
+        res.end(body)
+        return
+      }
+      if (segments[0] === 'diag' && segments.length === 1) {
+        for await (const chunk of req) { /* the preview discards diagnostics */ }
+        res.writeHead(204, cors)
+        res.end()
+        return
+      }
+      // ── the editor's routes ─────────────────────────────────────────────────
+      // The same eight the Host serves, minus the trust fence (there is no
+      // connection service here). Save and upload write into the preview's
+      // stand-in profile directory, so the editor is fully usable offline.
+      if (segments[0] === 'editor' && segments.length === 1) {
+        const text = await readFile(join(PACKAGE, 'assets', 'editor', 'editor.html'), 'utf8')
+        res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', ...cors })
+        res.end(text)
+        return
+      }
+      if (segments[0] === 'idcard' && segments.length === 1) {
+        res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', ...cors })
+        res.end(IDCARD_HTML)
+        return
+      }
+      if (segments[0] === 'templates' && segments.length === 1) {
+        res.writeHead(200, { 'content-type': MIME['.json'], ...cors })
+        res.end(JSON.stringify({ ok: true, active: '', templates: store.listTemplates() }))
+        return
+      }
+      if (segments[0] === 'preview-template' && segments.length === 1) {
+        const id = new URL(req.url ?? '/', 'http://127.0.0.1').searchParams.get('id') ?? ''
+        const template = store.readTemplate(id)
+        if (template === null) {
+          refuse()
+          return
+        }
+        const { __root, __source, ...published } = template
+        res.writeHead(200, { 'content-type': MIME['.json'], ...cors })
+        res.end(JSON.stringify({ ok: true, template: published }))
+        return
+      }
+      if (segments[0] === 'editor' && segments[1] === 'draft' && segments.length === 2) {
+        let body = null
+        try {
+          body = JSON.parse(await readBodyText(req) || '{}')
+        } catch {
+          refuse()
+          return
+        }
+        const checked = validateTemplate(body?.template ?? body)
+        if (!checked.ok) {
+          res.writeHead(400, { 'content-type': MIME['.json'], ...cors })
+          res.end(JSON.stringify({ ok: false, error: checked.reason }))
+          return
+        }
+        const id = 'd' + Math.random().toString(36).slice(2, 10)
+        editorDrafts.set(id, {
+          template: checked.value,
+          start: Number.isInteger(body?.start) ? body.start : null,
+          count: Number.isInteger(body?.count) && body.count > 0 ? body.count : null,
+        })
+        while (editorDrafts.size > 20) editorDrafts.delete(editorDrafts.keys().next().value)
+        res.writeHead(200, { 'content-type': MIME['.json'], ...cors })
+        res.end(JSON.stringify({ ok: true, id }))
+        return
+      }
+      if (segments[0] === 'editor' && segments[1] === 'preview' && segments.length === 2) {
+        const query = new URL(req.url ?? '/', 'http://127.0.0.1').searchParams
+        const record = editorDrafts.get(query.get('id') ?? '')
+        const template = record?.template ?? store.readTemplate('archive-warm')
+        if (template === null) {
+          refuse()
+          return
+        }
+        const { __root, __source, ...published } = template
+        const base = `http://127.0.0.1:${String(CLIP_PORT)}/plugins/dsh-boot-animation/tpl`
+        const safe = (value) => JSON.stringify(value).replace(/</g, '\\u003c').replace(/\u2028|\u2029/g, '')
+        const jump = record && Number.isInteger(record.start)
+          ? `window.__DSH_BOOT_ANIM_TPL_JUMP__=${safe({ start: record.start, count: record.count ?? undefined })};`
+          : ''
+        res.writeHead(200, { 'content-type': MIME['.html'], ...cors })
+        res.end(`<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><title>编辑器预览</title>
+<link rel="stylesheet" href="${base}/splash.css">
+<style>html.dsu-lock,html.dsu-lock body{overflow:hidden!important}
+#dsh-boot-anim-tpl.dsu-boot{position:fixed;inset:0;z-index:2147483000;background:#000}
+body{margin:0}</style></head><body>
+<div id="dsh-boot-anim-tpl" class="dsu-root dsu-boot"></div>
+<script>window.__DSH_BOOT_ANIM_TPL_BASE__=${safe(base)};
+window.__DSH_BOOT_ANIM_TPL_CFG__=${safe({ enabled: true, mode: 'always', theme: 'light', speed: 1, requireInteraction: false, allowSkip: false, sound: false, voice: false, identity: 'JOYCE MOORE', identityId: '0087', accessLevel: '3', accent: '#ff7500', glitchA: '#ff3b30', glitchB: '#2971b8' })};
+window.__DSH_BOOT_ANIM_TPL_1__=${safe(published)};${jump}</script>
+<script src="${base}/splash.js"></script></body></html>`)
+        return
+      }
+      if (segments[0] === 'templates' && segments[1] === 'save' && segments.length === 2) {
+        let body = null
+        try {
+          body = JSON.parse(await readBodyText(req, 16 * 1024 * 1024) || '{}')
+        } catch {
+          refuse()
+          return
+        }
+        const checked = validateTemplate(body?.template ?? body)
+        if (!checked.ok) {
+          res.writeHead(400, { 'content-type': MIME['.json'], ...cors })
+          res.end(JSON.stringify({ ok: false, error: checked.reason }))
+          return
+        }
+        const dir = join(store.userRoot, checked.value.id)
+        await mkdir(dir, { recursive: true })
+        await writeFile(join(dir, 'template.json'), JSON.stringify(checked.value, null, 2) + '\n', 'utf8')
+        res.writeHead(200, { 'content-type': MIME['.json'], ...cors })
+        res.end(JSON.stringify({ ok: true, id: checked.value.id, file: join(dir, 'template.json').replace(/\\/g, '/') }))
+        return
+      }
+      if (segments[0] === 'template-assets' && segments[1] === 'upload' && segments.length === 2) {
+        let body = null
+        try {
+          body = JSON.parse(await readBodyText(req, 12 * 1024 * 1024) || '{}')
+        } catch {
+          refuse()
+          return
+        }
+        const id = String(body?.id ?? '')
+        const name = basename(String(body?.name ?? ''))
+        const bytes = Buffer.from(String(body?.data ?? ''), 'base64')
+        if (!/^[a-z0-9][a-z0-9-]{0,39}$/.test(id) || bytes.byteLength === 0 || bytes.byteLength > 8 * 1024 * 1024) {
+          refuse()
+          return
+        }
+        const dir = join(store.userRoot, id, 'assets')
+        await mkdir(dir, { recursive: true })
+        await writeFile(join(dir, name), bytes)
+        res.writeHead(200, { 'content-type': MIME['.json'], ...cors })
+        res.end(JSON.stringify({ ok: true, file: join(dir, name).replace(/\\/g, '/') }))
+        return
+      }
+      refuse()
+      return
+    }
+    refuse()
   })().catch(() => { if (!res.headersSent) res.writeHead(500).end() })
 })
 
@@ -92,13 +557,24 @@ const pageServer = createServer((req, res) => {
   const url = (req.url ?? '/').split('?')[0]
   void (async () => {
     if (url === '/' || url === '/index.html') {
+      const query = new URL(req.url ?? '/', 'http://127.0.0.1').searchParams
+      // The template form is asked for with ?form=template&template=<id>, and
+      // renders the same nine rows the Host injects for it — critical styles,
+      // the stylesheet link, the three globals, the mount point, the bootstrap
+      // and the script-src row — against the clip server's /tpl routes. The
+      // video form is the default, unchanged.
+      if (query.get('form') === 'template') {
+        const html = await templatePage(query)
+        res.writeHead(200, { 'content-type': MIME['.html'], 'cache-control': 'no-store' })
+        res.end(html)
+        return
+      }
       const screen = await readFile(join(PACKAGE, 'src', 'boot-screen.js'), 'utf8')
       // The screen's settings come from the query string, so the injection the
       // Host would emit can be reproduced exactly — `?sound=0` is the silence
       // switch, `?clickToEnter=1` the direct entry, `?hint=0` the hidden hint,
       // and `?enterMode=click` / `?fadeMs=4000` the other two fields. Anything
       // absent falls back to the Host's own default rather than being sent.
-      const query = new URL(req.url ?? '/', 'http://127.0.0.1').searchParams
       const cfg = JSON.stringify({
         base: '',
         manifest: `http://127.0.0.1:${String(CLIP_PORT)}/clips.json`,
@@ -287,7 +763,7 @@ const pageServer = createServer((req, res) => {
       res.end(html)
       return
     }
-    res.writeHead(404).end()
+    refuse()
   })().catch(() => { if (!res.headersSent) res.writeHead(500).end() })
 })
 

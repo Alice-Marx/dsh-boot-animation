@@ -4,44 +4,48 @@
 
 语言：简体中文 | [English](README.md)
 
-用选定或随机的本地视频替换 DSH 启动页，随后过渡进入应用，并提供可配置的播放与回退控制。它不会修改 DSH 核心源码；未来的兼容性不作保证。
+用选定或随机的本地视频替换 DSH 启动页，或用数据驱动的开屏模板（分幕、时间线、整页 iframe）替换，随后过渡进入应用，并提供可配置的播放与回退控制。它不会修改 DSH 核心源码；未来的兼容性不作保证。
 
 这是一个社区插件，与 DeepSeek 不相关，也未获得 DeepSeek 的认可。
 
 - **软件包：** [`@ljwei-stak/dsh-boot-animation`](https://www.npmjs.com/package/@ljwei-stak/dsh-boot-animation)
-- **版本：** [0.4.0](https://github.com/Alice-Marx/dsh-boot-animation/releases/tag/v0.4.0)
+- **版本：** [0.6.0](https://github.com/Alice-Marx/dsh-boot-animation/releases/tag/v0.6.0)
 - **仓库：** [Alice-Marx/dsh-boot-animation](https://github.com/Alice-Marx/dsh-boot-animation)
 - **主题：** `dsh-plugin`
 - **目录分类：** UI & Experience（用户界面与体验），遵循 [DSH Plugin Hub 提交分类](https://dsh-plugin.org/submit)。选择类别并不代表已获收录。
 
 ## 截图
 
-本地 Chromium 演示宿主渲染了实际的 0.4.0 启动页和设置卡片源码，并附带示例 profile 数据。这些不是已登录的 DSH live profile 截图，也不代表已完成跨平台验证。
+本地 Chromium 演示宿主渲染了实际的 0.6.0 启动页和设置卡片源码，并附带示例 profile 数据。这些不是已登录的 DSH live profile 截图，也不代表已完成跨平台验证。
 
 ![启动页预览](assets/screenshots/startup-preview.png)
 
-![设置页预览](assets/screenshots/settings-preview.png)
+影片形式：满屏短片 + 跟真实启动进度走的进度条 + 底部提示行。
+
+![模板形式预览](assets/screenshots/template-preview.png)
+
+模板形式：内置 `archive-warm` 分幕模板——经典授权序列，正在等待操作员确认。
 
 ## 安装
 
 ### Web 版
 
 ```bash
-dsh plugin --profile web add @ljwei-stak/dsh-boot-animation@0.4.0 --save-exact
+dsh plugin --profile web add @ljwei-stak/dsh-boot-animation@0.6.0 --save-exact
 ```
 
 必须已满足宿主与 Node 的要求。
 
 ### 桌面版
 
-打开 **设置 -> 插件 -> 添加插件**，粘贴 `@ljwei-stak/dsh-boot-animation@0.4.0`，然后按提示从托盘彻底退出并重新打开。
+打开 **设置 -> 插件 -> 添加插件**，粘贴 `@ljwei-stak/dsh-boot-animation@0.6.0`，然后按提示从托盘彻底退出并重新打开。
 
 对于 Desktop 升级，如果实时安装 API 报告该软件包已安装，请先从托盘彻底退出，然后使用官方 Desktop 捆绑包装器——而不是较旧的全局 `dsh` 可执行文件。
 
 Windows 默认位置的可复制离线命令：
 
 ```powershell
-& "$env:LOCALAPPDATA\Programs\DeepSeek Harness\resources\runtime\cli\bin\dsh.cmd" plugin --profile desktop add '@ljwei-stak/dsh-boot-animation@0.4.0' --save-exact
+& "$env:LOCALAPPDATA\Programs\DeepSeek Harness\resources\runtime\cli\bin\dsh.cmd" plugin --profile desktop add '@ljwei-stak/dsh-boot-animation@0.6.0' --save-exact
 ```
 
 如果 DeepSeek Harness 安装在其他位置，请相应调整包装器路径。如果你使用自定义 `DSH_HOME`，在运行此命令时请保留该设置。不要在 Linux 或 macOS 上使用这个确切的 Windows 路径。
@@ -79,12 +83,54 @@ Desktop：使用官方插件 UI。已有的自定义视频是独立数据；在�
 | `sound` | `true` | 受浏览器手势策略限制。 |
 | `clickToEnter` | `false` | 启用后，第一次指针按下会立即进入；否则按下可能先用于解锁音频。 |
 | `showHint` | `true` | 显示进入提示。 |
+| `form` | `video` | `video` 是影片形式；`template` 把开屏页交给数据驱动的模板运行时。 |
+| `template` | `archive-warm` | 模板形式第一幕的模板 id。 |
+| `template2` | `""` | 可选的第二幕；为空则不播。 |
+| `tpl` | 见下 | 模板形式自己的设置（速度、主题、时机、配音、身份、配色、转场、玻璃）。 |
+
+`tpl` 是一个嵌套对象，每个叶子字段都可以单独热更新——设置卡片一次只写一个叶子
+（`{ op: 'set', path: ['tpl', 'speed'] }`）。Host 没有下发的字段一律沿用 vendored
+运行时的默认值，所以在模板形式出现之前写下的设置文档本身就是完整的。全部字段、
+取值范围与默认值见 `entry.js` 的 `TPL_DEFAULTS`。
 
 ## 视频素材
 
 导入的视频会复制到 `<DSH_HOME>/profiles/<profile>/data/dsh-boot-animation/videos`。最初选中的文件不会被改动。`assets/videos` 下的旧版内置资源可能会被软件包升级替换；推荐使用 UI 导入。
 
 在 UI 中，打开 **设置 -> 插件 -> 启动动画**，可以导入最大 256 MiB 的视频、将一个片段设为启动片或启用多个片段进行随机选择、预览当前效果，并在确认后移除自定义片段。
+
+## 开屏模板
+
+`form: template` 时，开屏页由 `assets/splash/` 下的 vendored 运行时渲染：模板是纯
+JSON 加素材。内置三种引擎，任选其一都能跑：**分幕 steps**（中英文字幕 + 配音 + 可选
+等待）、**时间线 layers**（图层关键帧——文字、线条、面板、图片、视频、字符球、身份卡
+等）、**iframe**（模板自己的整个网页，经能力令牌沙箱加载）。
+
+插件内置 12 个模板，覆盖每种引擎。把模板目录放进
+`<DSH_HOME>/profiles/<profile>/data/dsh-boot-animation/templates/<id>/` 即可加入列表，
+同名的用户模板会覆盖内置模板。为 [dsh-boot-suite](https://github.com/LeeRolling/dsh-boot-suite)
+写的模板可以直接用——格式是那个项目的，运行时是其引擎的适配副本，完整署名见
+[CREDITS.md](CREDITS.md)。
+
+动这一半之前值得知道的两条不变量：读不出来或校验不过的模板会回落到影片形式
+（绝不是黑屏），以及每个可能读到用户模板目录的路由都过浏览器信任栅栏，栅栏 fail-closed。
+
+### 音乐、编辑器与商店
+
+模板形式还带着三项能力，同样移植自上游项目，也遵循同样的规则：
+
+- **自己的音乐**：设置卡片的「背景音乐」分段可以导入音频（MP3 / WAV / OGG / M4A / AAC /
+  FLAC，单个不超过 100 MB），文件只写进本机 profile 的数据目录，不上传任何地方。
+  可以指定主音乐和可选的第二段（两段之间交叉淡入），以及音量、拍速、两段的拍数与
+  起点、循环方式和配音闪避。存储的文件名是生成的，不取自请求；读取路由在碰磁盘之前
+  会再校验一次白名单。
+- **可视化编辑器**：卡片里的「打开模板编辑器」开一个完整页面，可视化地改文字、图层、
+  关键帧和配色，带实时预览台；保存写进用户模板目录，覆盖前自动备份旧版本。页面由
+  `tools/vendor-editor.mjs` 从上游编辑器生成，路由基准改写到本插件。
+- **模板商店**：卡片里的「模板商店」分段列出公开模板（默认索引是 dsh-boot-suite 的
+  模板库，格式本插件原样支持），点「安装」就把模板和自带素材写进用户目录。拉取在宿主
+  侧完成，有体积和超时上限；文档在写入前先过校验，且 id 必须与索引条目一致。网络不
+  通时回答上次读到的列表，而不是把功能藏掉。
 
 ## 兼容性
 
@@ -134,7 +180,7 @@ node verify/verify-options.mjs
 node verify/verify-custom-clips.mjs
 ```
 
-0.4.0 版本通过了 243 项检查；但这并不意味着每个 Desktop 版本或操作系统都经过了完整的端到端测试。
+0.6.0 版本通过了 542 项检查；但这并不意味着每个 Desktop 版本或操作系统都经过了完整的端到端测试。
 
 有关开发和设置详情，请参阅 [AGENTS.md](AGENTS.md)、[MANUAL.md](MANUAL.md) 和 [INSTALL.md](INSTALL.md)。归档的历史记录保存在 [docs/DEVELOPMENT_NOTES.md](docs/DEVELOPMENT_NOTES.md)，不具有权威性。
 

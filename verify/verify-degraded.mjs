@@ -61,7 +61,7 @@ check('the module still evaluates', typeof mod.apply === 'function')
 check('Config is still exported', 'toJSON' in mod.Config)
 equal('every field degrades to non-volatile',
   Object.keys(mod.Config.dict).map((key) => mod.Config.dict[key].meta.volatile ?? null),
-  [null, null, null, null, null, null, null])
+  [null, null, null, null, null, null, null, null, null, null, null])
 
 function equal(label, actual, expected) {
   const a = JSON.stringify(actual)
@@ -80,7 +80,7 @@ const ctx = {
   webServer: { register: (route) => { routes.push(route); return () => {} } },
 }
 mod.apply(ctx, mod.Config({}))
-check('all three routes are registered', routes.length === 3, routes.map((r) => r.path).join(', '))
+check('all twenty-eight routes are registered', routes.length === 28, routes.map((r) => r.path).join(', '))
 const table = []
 check('the injection listener is subscribed', typeof listeners.get('webserver/index-inject') === 'function')
 listeners.get('webserver/index-inject')(table)

@@ -2,46 +2,51 @@
 
 [![Listed on dsh-plugin.org](https://dsh-plugin.org/badges/listed.svg)](https://dsh-plugin.org/plugins/alice-marx/dsh-boot-animation)
 
-Replaces the DSH startup page with a chosen or random local video, then transitions into the app, with configurable playback and fallback controls. It does not modify DSH core source; future compatibility is not guaranteed.
+Replaces the DSH startup page with a chosen or random local video, or with a data-driven boot-screen template (scene steps, a keyframed timeline, or a whole iframe document), then transitions into the app, with configurable playback and fallback controls. It does not modify DSH core source; future compatibility is not guaranteed.
 
 **Language:** English | [简体中文](README.zh-CN.md)
 
 This is a community plugin, not affiliated with or endorsed by DeepSeek.
 
 - **Package:** [`@ljwei-stak/dsh-boot-animation`](https://www.npmjs.com/package/@ljwei-stak/dsh-boot-animation)
-- **Release:** [0.4.0](https://github.com/Alice-Marx/dsh-boot-animation/releases/tag/v0.4.0)
+- **Release:** [0.6.0](https://github.com/Alice-Marx/dsh-boot-animation/releases/tag/v0.6.0)
 - **Repository:** [Alice-Marx/dsh-boot-animation](https://github.com/Alice-Marx/dsh-boot-animation)
 - **Topic:** `dsh-plugin`
 - **Directory category:** UI & Experience (用户界面与体验), following the [DSH Plugin Hub submission categories](https://dsh-plugin.org/submit). A category choice is not a claim of listing acceptance.
 
 ## Screenshots
 
-Local Chromium demo host rendering the actual 0.4.0 boot and card source with sample profile data. These are not screenshots of a signed-in live DSH profile and are not a cross-platform certification.
+Local Chromium demo host rendering the actual 0.6.0 boot and card source with sample profile data. These are not screenshots of a signed-in live DSH profile and are not a cross-platform certification.
 
 ![Startup preview](assets/screenshots/startup-preview.png)
 
-![Settings preview](assets/screenshots/settings-preview.png)
+The clip form: a full-window clip, the progress bar following the real boot, and the hint line.
+
+![Template preview](assets/screenshots/template-preview.png)
+
+The template form: the built-in `archive-warm` steps template — the classic
+authorisation sequence, waiting for the operator's confirmation.
 
 ## Install
 
 ### Web
 
 ```bash
-dsh plugin --profile web add @ljwei-stak/dsh-boot-animation@0.4.0 --save-exact
+dsh plugin --profile web add @ljwei-stak/dsh-boot-animation@0.6.0 --save-exact
 ```
 
 Host and Node requirements must already be met.
 
 ### Desktop
 
-Open **Settings -> Plugins -> Add plugin**, paste `@ljwei-stak/dsh-boot-animation@0.4.0`, then quit and reopen from the tray as prompted.
+Open **Settings -> Plugins -> Add plugin**, paste `@ljwei-stak/dsh-boot-animation@0.6.0`, then quit and reopen from the tray as prompted.
 
 For Desktop upgrades where the live install API reports the package as already installed, fully quit from the tray first and use the official Desktop bundled wrapper — not an older global `dsh` binary.
 
 Windows default-location copyable offline command:
 
 ```powershell
-& "$env:LOCALAPPDATA\Programs\DeepSeek Harness\resources\runtime\cli\bin\dsh.cmd" plugin --profile desktop add '@ljwei-stak/dsh-boot-animation@0.4.0' --save-exact
+& "$env:LOCALAPPDATA\Programs\DeepSeek Harness\resources\runtime\cli\bin\dsh.cmd" plugin --profile desktop add '@ljwei-stak/dsh-boot-animation@0.6.0' --save-exact
 ```
 
 Adjust the wrapper path if DeepSeek Harness is installed elsewhere. If you use a custom `DSH_HOME`, retain it when running this command. Do not use this exact Windows path on Linux or macOS.
@@ -79,12 +84,68 @@ Settings namespace: `boot-animation`. Prefer the existing settings UI. Preview u
 | `sound` | `true` | Subject to browser gesture policy. |
 | `clickToEnter` | `false` | When enabled, the first pointer press enters immediately; otherwise a press may first unlock audio. |
 | `showHint` | `true` | Display entry hint. |
+| `form` | `video` | `video` is the clip screen; `template` hands the boot page to the data-driven runtime. |
+| `template` | `archive-warm` | Template id for the template form's first act. |
+| `template2` | `""` | Optional second act; empty plays none. |
+| `tpl` | see below | The template form's own settings (speed, theme, mode, voice, identity, colours, transitions, glass). |
+
+`tpl` is one nested object whose leaves are individually live-editable — the
+settings card writes one leaf at a time (`{ op: 'set', path: ['tpl', 'speed'] }`).
+Every field the Host does not send keeps the vendored runtime's own default, so a
+settings document written before the template form existed is complete as it
+stands. The full list, with ranges and defaults, is `TPL_DEFAULTS` in `entry.js`.
 
 ## Media
 
 Imported videos are copied to `<DSH_HOME>/profiles/<profile>/data/dsh-boot-animation/videos`. The original selected file is untouched. Legacy bundled assets under `assets/videos` may be replaced by package upgrades; UI import is preferred.
 
 In the UI, open **Settings -> Plugins -> 启动动画** to import a video up to 256 MiB, set one clip as startup or enable several for random selection, preview current effects, and remove custom clips after confirmation.
+
+## Boot-screen templates
+
+With `form: template`, the boot page is rendered by the vendored runtime under
+`assets/splash/` from a template's pure JSON plus its assets. Three engines ship
+and any of them can play: **steps** (a scene sequence with zh/en text, voice and
+optional waits), **layers** (a keyframed timeline — text, line, panel, image,
+video, chars globe, idcard and more), and **iframe** (a whole document of the
+template's own, sandboxed behind a capability token).
+
+Twelve templates are built in, curated to demonstrate each engine. A template
+directory dropped into `<DSH_HOME>/profiles/<profile>/data/dsh-boot-animation/templates/<id>/`
+joins the list, and a same-named user template overrides the built-in. Templates
+written for [dsh-boot-suite](https://github.com/LeeRolling/dsh-boot-suite) run
+unchanged — the format is that project's, and the runtime is an adapted copy of
+its engine with full attribution in [CREDITS.md](CREDITS.md).
+
+Two invariants are worth knowing before touching this half: a template that
+cannot be read or validated falls back to the clip screen (never a blank boot
+page), and every route that can read the user's template directory passes the
+browser trust fence, which fails closed.
+
+### Music, editor and store
+
+Three more capabilities the template form carries, all ported from the same
+upstream project and all held to the same rules:
+
+- **Your own music.** With the template form, the card's BGM section imports an
+  audio file (MP3 / WAV / OGG / M4A / AAC / FLAC, up to 100 MB) into the
+  profile's data directory — never uploaded anywhere — and picks which track
+  plays where: a main track, an optional second with a crossfade, volume, beat
+  grid, loops and voice ducking. The stored name is generated rather than taken
+  from the request, and the file route re-checks the whitelist before reading.
+- **A visual editor.** The card's 打开模板编辑器 opens a full page that edits a
+  template as JSON with a live preview stage, saving into the user template
+  directory with a timestamped backup of whatever it replaces. The page is
+  generated by `tools/vendor-editor.mjs` from the upstream editor, with its
+  route base rewritten to this package's.
+- **A template store.** The card's 模板商店 section lists published templates —
+  the default index is the dsh-boot-suite template library, whose format this
+  package plays unchanged — and installs one into the user directory on request.
+  The fetch happens on the Host side, bounded and timed out; the document is
+  validated before it is written and its id is checked against the index entry
+  that named it. A network failure answers the last good list rather than
+  hiding the feature.
+browser trust fence, which fails closed.
 
 ## Compatibility
 
@@ -134,7 +195,7 @@ node verify/verify-options.mjs
 node verify/verify-custom-clips.mjs
 ```
 
-The 0.4.0 release passed 243 checks; this does not imply every Desktop release or operating system was fully end-to-end tested.
+The 0.6.0 release passed 542 checks; this does not imply every Desktop release or operating system was fully end-to-end tested.
 
 See [AGENTS.md](AGENTS.md), [MANUAL.md](MANUAL.md), and [INSTALL.md](INSTALL.md) for development and setup detail. Archived historical notes are kept at [docs/DEVELOPMENT_NOTES.md](docs/DEVELOPMENT_NOTES.md) and are non-authoritative.
 

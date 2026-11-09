@@ -7,7 +7,7 @@ silently, and how to prove a change is safe.
 > **Porting note (DSH 0.2.0-rc.2).** The Host settings contract changed: a plugin
 > no longer *registers* a settings namespace, it *declares* `Config`. Everything
 > below reflects that. The wide `verify-*` set the README names belongs to the
-> author's working copy; what actually ships here is the four suites under
+> author's working copy; what actually ships here is the suites under
 > [`verify/`](verify/) — see [Verifying a change](#verifying-a-change).
 
 Human-facing usage lives in [MANUAL.md](MANUAL.md). The long forensic record —
@@ -16,16 +16,31 @@ Read this file first; go to the archived development notes only for the history 
 
 ## What it is
 
-A DSH plugin that replaces the kernel's boot page with a full-window video clip,
-then dissolves into the app. No DSH source is modified: it injects a script into
-`<head>` ahead of the shell, and contributes a card to Settings → Plugins.
+A DSH plugin that replaces the kernel's boot page with a boot screen of the user's
+choosing, then dissolves into the app. No DSH source is modified: it injects rows
+into `<head>` ahead of the shell, and contributes a card to Settings → Plugins.
+
+Two screen FORMS ship, picked by the `form` setting:
+
+| Form | What plays | Engine |
+|---|---|---|
+| `video` | A full-window clip from the pool, with progress and hint chrome | `src/boot-screen.js` (this package's own) |
+| `template` | A data-driven animation: scene steps, a keyframed timeline, or a whole iframe document | `assets/splash/` (vendored, see [CREDITS.md](CREDITS.md)) |
+
+The template form is what makes the plugin a host for *other people's* boot
+screens: templates are pure JSON + assets, the runtime interprets them, and a
+template dropped into the profile's data directory plays without a code change.
 
 | Half | File | Job |
 |---|---|---|
-| Host (Node) | `entry.js` | Serves clips over HTTP with Range, declares the `Config` schema the settings namespace is derived from, injects the pre-boot screen into the index |
+| Host (Node) | `entry.js` | Serves clips over HTTP with Range, serves the template form's routes, declares the `Config` schema the settings namespace is derived from, injects the pre-boot rows for the active form |
 | Host custom media | `src/custom-clips.js` | Authenticated streaming import/read/removal, with persistent per-profile files outside the npm package |
-| Browser (pre-boot) | `src/boot-screen.js` | The overlay itself: framework-free, injected as text, must run before the shell |
-| Browser (plugin) | `src/client.js` → `lib/client.js` | Reports activation to the overlay, and renders the settings card |
+| Host templates | `src/template-store.js` | Template discovery (package + profile), validation, containment, iframe capability tokens |
+| Host validation | `src/template-validate.js` | The structural bounds a template document must satisfy before it is served |
+| Host fence | `src/trust-fence.js` | The fail-closed browser trust fence the template routes sit behind |
+| Browser (pre-boot, video) | `src/boot-screen.js` | The clip overlay itself: framework-free, injected as text, must run before the shell |
+| Browser (pre-boot, template) | `assets/splash/splash.js` | The vendored template runtime: reads the injected globals, mounts, plays |
+| Browser (plugin) | `src/client.js` → `lib/client.js` | Reports activation to the video overlay, replays the template runtime for a preview, and renders the settings card |
 
 ### The two DSH facts everything rests on
 
@@ -80,6 +95,51 @@ Every line here cost a real debugging session. They are not style preferences.
 | **A PowerShell statement that ends in `+` does not continue onto the next line.** | `$x = 'a' + $y` is already complete, so a following line starting with `+` is parsed as a *unary* plus, throws at runtime, and — under `$ErrorActionPreference = 'Continue'` — the throw is swallowed. The value is then half-built and nothing says so: a split regex assembled this way matched the wrong block and returned a plausible count. One complete statement per line. |
 | **The install/uninstall pair edits the patch layer as BYTES, and accounts for them before writing.** | `ReadAllLines`/`WriteAllLines` normalises every terminator, so "the row was removed" came with a whole-file rewrite. `ReadAllText`/`WriteAllText` keeps every other byte as it was; the byte total is asserted before the write, and the one case that cannot round-trip (a layer with no final newline) is stated rather than claimed away. |
 
+## The template form's invariants
+
+Everything above is the clip screen's own history. The template form added a
+second set of rules, each learned from the two repositories it was ported from —
+dsh-boot-suite and dsh-startup-screen spent real incidents on every one of them.
+
+| Rule | What happens if it is broken |
+|---|---|
+| **The runtime is a `script-src` row, never a `<script>` inside an `html` row.** | The desktop build (file:// + IPC) renders html rows as text and never executes the tags inside them: the script sits in the document, the runtime never runs, and the boot page shows the kernel's own screen after the animation appears to be "missing". |
+| **The template data travels as a script row with `safeJson`, not as a raw JSON string.** | A `</script>` inside a template's copy ends the row early and the rest of the JSON executes as markup. `validateTemplate` does not strip that; `safeJson` is what makes the row inert data. |
+| **A template that cannot be read or validated falls back to the clip screen.** | The alternative is a boot page with no screen at all — the one outcome this package's whole design exists to prevent. The fallback is logged, because a user who chose a template and got a clip deserves to be able to find out why. |
+| **Every route that can read the user's template directory passes the trust fence, and the fence fails closed.** | Without it such a route is readable by any page the user visits. Fail-closed is deliberate: a guard that throws, or a connection service that is not there, must refuse — the cost is a template animation without its user media, never a blank screen. |
+| **The capability token is the ONLY way an iframe template's files are served; a user template is always sandboxed, including on the fallback path.** | Same-origin without a sandbox hands a third-party document the user's session. The fallback route exists for the case the token cannot be minted, and it must keep the sandbox — a fallback that dropped it would defeat the token route. |
+| **The user template directory overrides the package's, same id.** | The reverse silently takes a customised template away on the next plugin update — and an editor that saves to the user directory would appear to do nothing. |
+| **`dsu-lock` is removed by the runtime's `finish()` and by the bootstrap's nine-second fallback, and the fallback's criterion is the RUNNING flag, not a class.** | A lock left on makes the whole app unscrollable after the animation. The class is removed the moment the runtime loads, so a class-based criterion can never fire for the case it exists for — a runtime that never started. |
+| **Nothing under `/tpl/` is cacheable.** | The runtime aborts a media request when it hands over or skips, and a stored fragment of a video is exactly the poisoning the clip route's no-store rule exists to prevent. |
+| **The vendored runtime is generated, never hand-edited.** | A hand edit that is not in the script's rename map is lost on the next regeneration, and `verify-splash-vendor.mjs` then fails on a file nobody meant to change. |
+
+The rename map in `tools/vendor-splash-runtime.mjs` is the whole isolation
+story: globals, root id, route prefix, storage keys and the completion event are
+this plugin's own, while the `.dsu-*` class vocabulary and the
+`dsh-startup-done` / `-skip` / `-voice` / `-bgm` postMessage names are
+deliberately shared — an iframe template imported from the source trees speaks
+the latter, and renaming them would break every one of them.
+
+## The music, editor and store halves
+
+Three more capabilities came from the same two repositories. Each kept the
+upstream rule that made it safe, and each added one this package learned while
+porting it.
+
+| Rule | What happens if it is broken |
+|---|---|
+| **A music file's stored name is generated, never taken from the request; the user's file name is display text only.** | Letting a request name become a path segment is how a traversal starts. The whitelist (`MUSIC_FILE_RE`) is matched again by the file route before anything is read. |
+| **Every `/tpl/music/*` route is fenced, and fails closed.** | The music directory is profile data: an unfenced read route is a read primitive over the user's files. |
+| **The music store's `remove()` answers "gone", not "deleted".** | A track whose file is already absent has reached the desired end state; answering false there makes the card re-offer a file that cannot play. Containment is the one refusal, and it is checked only when the file exists — realpath on a missing file throws, and a throw swallowed as false refuses every already-gone track. |
+| **Containment on a WRITE path is proven on what exists.** | `isFileInsideRoot` realpaths both sides; a file that does not exist yet cannot be realpath'd, so checking the new file directly refuses every first write. The directory is created first, the name is a whitelisted single segment, and the directory's realpath is the proof. |
+| **The editor saves into the user's template directory, with a timestamped backup of whatever it replaces.** | An edit that goes wrong must be one file away from being undone. A backup that cannot be made must still write — losing the new version is worse than losing the old one's copy. |
+| **The editor page is generated, never hand-edited, and its `/config`-shaped URL sites are rewritten to plain concatenation.** | The two `API.replace('/config', …)` sites exist because upstream mounted the editor under a settings path this package does not have; left alone they are no-ops that POST to the route root. `verify-splash-vendor.mjs` asserts the rewrite. |
+| **A draft lives in memory, capped at twenty, and dies with the process.** | A draft is a template being watched, not saved. Writing it to disk would make a half-edit installable. |
+| **The store reads one fixed origin, on the Host side, bounded and timed out.** | The browser fetching the index would need CORS the store does not offer; an unbounded body would cost the Host memory; a hanging connection would hang a route. |
+| **A store install validates the document BEFORE writing it, and checks its id against the index entry that named it.** | An index is remote data: an entry is not a promise that the document behind it is sound, and an entry that points at someone else's template is a mismatch, not an install. |
+| **The store's fetch never passes an `AbortSignal`.** | In this runtime the global `fetch` and a locally constructed `AbortController` come from different realms, and the signal makes fetch reject outright — which a catch would swallow and turn every store read into a silent failure. The timeout is a race instead. |
+| **A store index that cannot be fetched answers the LAST GOOD list with `ok:false`.** | A flaky network costs freshness, not the feature — an empty list would hide templates the user already knows are there. |
+
 ## Change → restart matrix
 
 | Changed | To see it |
@@ -88,6 +148,11 @@ Every line here cost a real debugging session. They are not style preferences.
 | `entry.js` (routes, settings schema, injected rows) | **Restart DSH.** The running process holds the old module. |
 | `src/client.js` | Rebuild (`node build-client.mjs`), then reload; if the change does not appear, restart — the initial bundle revision is allocated per process. |
 | `assets/videos/*` | Reload. The manifest is read per request and clip URLs carry a content revision. |
+| `assets/splash/splash.js` / `.css` | Reload. The /tpl routes re-read them per request under an mtime cache, so a regenerated runtime shows up on the next page load. |
+| `assets/templates/*` | Reload for a built-in; the store re-reads template.json per request. A USER template takes effect on the next page load with no restart. |
+| `src/template-store.js` / `template-validate.js` / `trust-fence.js` | **Restart DSH** — they are imported by `entry.js`. |
+| `src/music-store.js` / `template-store-remote.js` / `idcard-html.js` | **Restart DSH** — imported by `entry.js`. |
+| `assets/editor/editor.html` | Reload the editor page. The route re-reads it per request under the static-text cache, so a regenerated editor shows up on the next open. |
 
 Installed state: there are two routes, and they leave different footprints.
 
@@ -130,13 +195,26 @@ node verify/verify-entry.mjs   # Host half: Config, injection, manifest route
 node verify/verify-degraded.mjs # the old-schema-library degradation path
 node verify/verify-options.mjs  # the three interaction switches, against a stub DOM
 node verify/verify-custom-clips.mjs # real HTTP import/auth/Range/persistence/removal in temporary profiles
+node verify/verify-template-store.mjs # template discovery/override/validation/containment/tokens/fence
+node verify/verify-splash-vendor.mjs # the vendored runtime's static contract (renames, glass, templates)
+node verify/verify-music.mjs  # the music store, the whitelist, the routes and the fence
+node verify/verify-store.mjs  # the remote store client and the install route, against a loopback stub
 ```
 
-`verify/` **is** part of this tree, and those four suites are what it can run
+`verify/` **is** part of this tree, and those eight suites are what it can run
 offline with no DSH process, no ports and no prompts. `verify-entry.mjs` and
 `verify-degraded.mjs` cover the Host half; `verify-options.mjs` runs
 `src/boot-screen.js` itself in a minimal DOM, because the screen is a script text
-and a grep for `cfg.sound` would pass on a file that greps it and ignores it.
+and a grep for `cfg.sound` would pass on a file that greps it and ignores it;
+`verify-template-store.mjs` exercises the store and the fence against the real
+`assets/templates` tree plus a temporary user directory; `verify-splash-vendor.mjs`
+asserts the shipped runtime still satisfies the vendoring contract — no stale
+global, no stale route, the glass patch intact, the postMessage vocabulary left
+alone; `verify-music.mjs` drives the real music routes (including the fence's
+fail-closed path) against a temporary profile; `verify-store.mjs` mounts the
+install route against a loopback stub that answers the shapes the real raw URLs
+would, so the only network-touching half of this package is proven without a
+network.
 
 The wider `verify-*` set and the `verify-all.mjs` aggregator named in
 [docs/DEVELOPMENT_NOTES.md](docs/DEVELOPMENT_NOTES.md) belong to the author's working copy and are **not** in this
@@ -153,6 +231,10 @@ tree. What `tools/` holds here is the media and preview tooling:
 | `tools/preview.mjs` | Local two-server preview of the injection, without restarting DSH |
 | `tools/install.ps1` / `tools/uninstall.ps1` | Add or remove the profile link and the patch row. Both name the profile the running DSH uses (`desktop`, not the `web` default) and both must leave `cordis.patch.yml` byte-identical except for the row they own — UTF-8, no BOM, CJK intact. `install.ps1`'s last step only *reports* whether a dsh server answered; it does not repair, and it does not roll back on a port it could not reach. |
 | `tools/install.sh` / `tools/uninstall.sh` | The macOS / Linux twins of the pair above: same two changes, same backup, same UTF-8-safe line handling, plus a schema-version probe (≥ 3.18.4 with `.volatile()`). |
+| `tools/vendor-splash-runtime.mjs` | Rebuild `assets/splash/` from the source trees (default `../dsh-boot-suite` and `../dsh-startup-screen` for the glass patch). Applies the rename map in one place and asserts nothing stale survived. Never hand-edit the output — the script is the source of truth. |
+| `tools/pack-templates.mjs` | Rebuild `assets/templates/` from the source tree's template library, with the curated list and the per-template validation the suite asserts. |
+| `tools/vendor-editor.mjs` | Rebuild `assets/editor/editor.html` from the source tree's editor page (default `../dsh-boot-suite`). Applies the route-base rename map in one place and asserts nothing stale survived. Never hand-edit the output. |
+| `tools/preview.mjs` | Local two-server preview of BOTH forms: `?` for the clip screen (as before), `?form=template&template=<id>` for the template form, served through the real store module. |
 
 For a Host-half change the offline proof that matters is that the module still
 evaluates, still exports the schema the settings service looks for, and still
