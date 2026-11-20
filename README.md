@@ -11,7 +11,7 @@ Replaces the DSH startup page with a chosen or random local video, or with a dat
 This is a community plugin, not affiliated with or endorsed by DeepSeek.
 
 - **Package:** [`@ljwei-stak/dsh-boot-animation`](https://www.npmjs.com/package/@ljwei-stak/dsh-boot-animation)
-- **Release:** [0.6.6](https://github.com/Alice-Marx/dsh-boot-animation/releases/tag/v0.6.6)
+- **Release:** [0.6.7](https://github.com/Alice-Marx/dsh-boot-animation/releases/tag/v0.6.7)
 - **Repository:** [Alice-Marx/dsh-boot-animation](https://github.com/Alice-Marx/dsh-boot-animation)
 - **Topic:** `dsh-plugin`
 - **Directory category:** UI & Experience (用户界面与体验) — listed in the [DSH plugin directory](https://dsh-plugin.org/plugins/alice-marx/dsh-boot-animation) and indexed by [dshfind](https://dshfind.com/en/plugins/Alice-Marx/dsh-boot-animation); the badges above read their live status.
@@ -34,21 +34,21 @@ authorisation sequence, waiting for the operator's confirmation.
 ### Web
 
 ```bash
-dsh plugin --profile web add @ljwei-stak/dsh-boot-animation@0.6.6 --save-exact
+dsh plugin --profile web add @ljwei-stak/dsh-boot-animation@0.6.7 --save-exact
 ```
 
 Host and Node requirements must already be met.
 
 ### Desktop
 
-Open **Settings -> Plugins -> Add plugin**, paste `@ljwei-stak/dsh-boot-animation@0.6.6`, then quit and reopen from the tray as prompted.
+Open **Settings -> Plugins -> Add plugin**, paste `@ljwei-stak/dsh-boot-animation@0.6.7`, then quit and reopen from the tray as prompted.
 
 For Desktop upgrades where the live install API reports the package as already installed, fully quit from the tray first and use the official Desktop bundled wrapper — not an older global `dsh` binary.
 
 Windows default-location copyable offline command:
 
 ```powershell
-& "$env:LOCALAPPDATA\Programs\DeepSeek Harness\resources\runtime\cli\bin\dsh.cmd" plugin --profile desktop add '@ljwei-stak/dsh-boot-animation@0.6.6' --save-exact
+& "$env:LOCALAPPDATA\Programs\DeepSeek Harness\resources\runtime\cli\bin\dsh.cmd" plugin --profile desktop add '@ljwei-stak/dsh-boot-animation@0.6.7' --save-exact
 ```
 
 Adjust the wrapper path if DeepSeek Harness is installed elsewhere. If you use a custom `DSH_HOME`, retain it when running this command. Do not use this exact Windows path on Linux or macOS.
@@ -199,7 +199,7 @@ node verify/verify-options.mjs
 node verify/verify-custom-clips.mjs
 ```
 
-The 0.6.6 release passed 567 checks; this does not imply every Desktop release or operating system was fully end-to-end tested.
+The 0.6.7 release passed 568 checks; this does not imply every Desktop release or operating system was fully end-to-end tested.
 
 See [AGENTS.md](AGENTS.md), [MANUAL.md](MANUAL.md), and [INSTALL.md](INSTALL.md) for development and setup detail. Archived historical notes are kept at [docs/DEVELOPMENT_NOTES.md](docs/DEVELOPMENT_NOTES.md) and are non-authoritative.
 

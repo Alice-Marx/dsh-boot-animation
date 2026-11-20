@@ -661,9 +661,14 @@ function parseRange(header, size) {
  * @param absolute - resolved clip path on disk.
  * @param req - incoming request.
  * @param res - outgoing response.
+ * @param media - media responses owned by this plugin instance.
  */
-async function serveClip(absolute, req, res) {
+async function sendClip(absolute, req, res, media) {
   const info = await stat(absolute)
+  if (media.disposed || res.destroyed) {
+    res.destroy()
+    return
+  }
   const type = contentType(absolute)
   const range = parseRange(req.headers.range, info.size)
   if (range?.unsatisfiable === true) {
@@ -713,8 +718,12 @@ async function serveClip(absolute, req, res) {
     return
   }
   const stream = createReadStream(absolute, { start: from, end: to })
-  stream.on('error', () => { res.destroy() })
-  res.on('close', () => { stream.destroy() })
+  media.responses.add(res)
+  stream.once('error', () => { res.destroy() })
+  res.once('close', () => {
+    media.responses.delete(res)
+    stream.destroy()
+  })
   stream.pipe(res)
 }
 
@@ -744,6 +753,10 @@ function resolveClip(url) {
  */
 export function apply(ctx, config) {
   const server = ctx.webServer
+  const media = { disposed: false, responses: new Set() }
+  function serveClip(absolute, req, res) {
+    return sendClip(absolute, req, res, media)
+  }
   const customClips = createCustomClips(ctx, { route: ROUTE, serveClip, sendJson, readFaststart })
   // The template form's data, and the guard its user-facing routes sit behind.
   // Both are optional by construction: the store degrades to the built-in
@@ -1904,6 +1917,14 @@ export function apply(ctx, config) {
     })
     table.push({ kind: 'script', placement: 'head', text: bootScreenSource() })
   })
+
+  // Unregistering a route does not end responses it has already started. A
+  // paused video can keep a Range response open while the host shuts down.
+  ctx.effect(() => () => {
+    media.disposed = true
+    for (const response of media.responses) response.destroy()
+    media.responses.clear()
+  }, 'boot-animation: close active media responses')
 }
 
 /**

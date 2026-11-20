@@ -1,7 +1,7 @@
 // Exercise real HTTP handlers against disposable profile storage.
 import assert from 'node:assert/strict'
 import { createServer, request } from 'node:http'
-import { mkdtemp, mkdir, readdir, readFile, writeFile, access, rm, symlink } from 'node:fs/promises'
+import { mkdtemp, mkdir, readdir, readFile, writeFile, access, rm, symlink, truncate } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { resolve, join, sep } from 'node:path'
 import { randomUUID } from 'node:crypto'
@@ -48,7 +48,10 @@ async function mount(dir, config = {}, optional = true) {
   const base = `http://127.0.0.1:${server.address().port}`
   const call = (path, options = {}) => fetch(base + route + path, { headers, ...options })
   const manifest = () => call('/clips.json').then(response => response.json()).then(answer => answer.clips)
-  return { base, call, manifest, injections }
+  const dispose = () => {
+    while (disposers.length) disposers.pop()()
+  }
+  return { base, call, manifest, injections, dispose }
 }
 
 try {
@@ -170,6 +173,29 @@ try {
     const response = await fetch(app.base + imported.src, { headers: { ...headers, range: 'bytes=0-4095' } })
     check('real bundled video imports and streams without corruption', response.status === 206 && Buffer.from(await response.arrayBuffer()).equals(real.subarray(0, 4096)))
   }
+  const playing = await upload('restart.mp4')
+  await truncate(join(dir, playing.name.slice(7)), 32 * 1024 * 1024)
+  const complete = await new Promise((resolve, reject) => {
+    const req = request(app.base + playing.src, {
+      headers: { ...headers, range: 'bytes=0-' },
+    }, res => {
+      res.on('error', error => {
+        if (error.code !== 'ECONNRESET') reject(error)
+      })
+      res.once('close', () => resolve(res.complete))
+      if (res.statusCode !== 206) {
+        reject(new Error('expected an active Range response'))
+        res.resume()
+        return
+      }
+      app.dispose()
+      res.resume()
+    })
+    req.on('error', reject)
+    req.setTimeout(3000, () => req.destroy(new Error('media connection did not close on disposal')))
+    req.end()
+  })
+  check('plugin disposal aborts an active media transfer', !complete)
   console.log(`PASS — ${checks}/${checks} custom media checks`)
 } finally {
   for (const { server, disposers } of servers) {
